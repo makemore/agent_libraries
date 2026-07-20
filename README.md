@@ -1,56 +1,70 @@
 # Agent Libraries
 
-Central documentation for the **agent_libraries** monorepo: the
-Python/Django backend, mobile + web clients, Studio UI, and the
-managed-MCP feature that lets projects hand end-users their own MCP
-servers.
+A **meta-repo** that ties together the agent platform's independent
+repositories: Python/Django backend, mobile + web clients, Studio UI,
+the chisel tool-builder framework, the parrot registry, and the docs
+site.
 
-## Read the docs
+## One-shot checkout
 
-The canonical guides live in the **[`docs/`](docs/)** directory.
+```bash
+git clone https://github.com/makemore/agent_libraries.git
+cd agent_libraries
+make checkout    # clones every sub-repo into the right relative path
+make install     # editable-install the Python packages
+```
 
-| Guide | Audience |
-|---|---|
-| [Product Overview](docs/overview/product-overview.md) | CTOs, technical leads — what is this product, when to use it, when not to |
-| [Server Install](docs/setup/server.md) | Backend / DevOps — stand up the Django runtime + Studio |
-| [Client Install](docs/setup/client.md) | Mobile developers — integrate iOS / Android agent clients |
-| [Managed MCP Setup](docs/setup/managed-mcp.md) | Backend developers — turn on multi-connection, per-principal MCP |
-| [chisel Setup](docs/setup/chisel.md) | Tool authors — install the chisel + django-chisel stack |
-| [Package Registry](docs/reference/package-registry.md) | Maintainers — internal PyPI registry, publishing flow |
-| [For AI agents](docs/contributing/agents.md) | AI coding agents — how to integrate the libraries in a new app |
+`make checkout` is idempotent — re-running it skips any sub-repo that's
+already present.
 
-## Source layout
+## Layout
 
 ```
 agent_libraries/
-├── docs/                   ← this documentation site (mkdocs source)
-├── agent/                  ← backend Python packages
-│   ├── agent_runtime_core/
-│   ├── django_agent_runtime/
-│   └── django_agent_studio/
-├── clients/                ← mobile, web, TS, Unity clients
-├── chisel/, django_chisel/ ← tool-builder framework
-└── parrot/                 ← agent version-control registry
+├── Makefile                 ← `make checkout` / `make install`
+├── scripts/                 ← meta-repo tooling (checkout, install, deploy, …)
+├── plans/                   ← cross-cutting design docs & specs
+├── assets/                  ← shared brand / UI assets
+├── test-harness/            ← shared test fixtures and stub servers
+├── docs/                    ← mkdocs source (own repo)
+├── agent/                   ← backend Python packages (own repo per package)
+├── clients/                 ← mobile, web, TS, Unity clients (own repo each)
+├── chisel/, django_chisel/  ← tool-builder framework (own repo each)
+└── parrot/                  ← agent version-control registry (own repo)
 ```
 
-## Per-package documentation
+Every sub-directory that is its own git repo can also be worked on
+independently. The meta-repo only holds the layout, scripts, and
+shared collateral.
 
-Every package has its own `README.md` with package-local content
-(install, settings, API reference). The docs site cross-links into
-those for the details; this index stays small.
+## Sub-repos
 
-## Building the docs
+| Path | Repo |
+|---|---|
+| `chisel/` | https://github.com/makemore/chisel |
+| `django_chisel/` | https://github.com/makemore/django_chisel |
+| `parrot/` | https://github.com/makemore/parrot |
+| `docs/` | https://github.com/makemore/agent-docs |
+| `agent/agent_runtime_core/` | https://github.com/makemore/agent-runtime-core |
+| `agent/agent_studio/` | https://github.com/makemore/agent_studio |
+| `agent/django_agent_runtime/` | https://github.com/makemore/django-agent-runtime |
+| `agent/django_agent_studio/` | https://github.com/makemore/django_agent_studio |
+| `clients/agent-frontend/` | https://github.com/makemore/agent-frontend |
+| `clients/agent-android/` | https://github.com/makemore/agent-android |
+| `clients/agent-unity/` | https://github.com/makemore/agent-unity |
+| `clients/agent-client/` | https://github.com/makemore/agent-client |
+| `clients/agent-ios/` | https://github.com/makemore/agent-ios |
 
-The docs site uses [mkdocs](https://www.mkdocs.org/) + the
-[Material](https://squidfunk.github.io/mkdocs-material/) theme. Build
-locally:
+## Read the docs
 
-```bash
-pip install mkdocs mkdocs-material
-cd docs
-mkdocs serve      # local preview at http://localhost:8000
-mkdocs build      # static site in docs/site/
-```
+The canonical guides live in **[`docs/`](docs/)**:
 
-The Cloudflare Pages deploy + GitHub Actions workflow will be added in
-a follow-up PR.
+| Guide | Audience |
+|---|---|
+| [Product Overview](docs/overview/product-overview.md) | CTOs, technical leads |
+| [Server Install](docs/setup/server.md) | Backend / DevOps |
+| [Client Install](docs/setup/client.md) | Mobile developers |
+| [Managed MCP Setup](docs/setup/managed-mcp.md) | Backend developers |
+| [chisel Setup](docs/setup/chisel.md) | Tool authors |
+| [Package Registry](docs/reference/package-registry.md) | Maintainers |
+| [For AI agents](docs/contributing/agents.md) | AI coding agents |
