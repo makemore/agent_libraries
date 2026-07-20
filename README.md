@@ -5,6 +5,35 @@ repositories: Python/Django backend, mobile + web clients, Studio UI,
 the chisel tool-builder framework, the parrot registry, and the docs
 site.
 
+## Known follow-ups (post-reorg)
+
+After the folder reorganisation, one client-side helper script still
+references the old stub-server path:
+
+- `clients/scripts/start_stub_server.sh` — line 14 sets
+  `STUB_DIR="$REPO_ROOT/clients/test-stub-server"`. That folder has
+  moved to `test-harness/stub-server/` (and the previously-committed
+  `.venv` inside it was purged, so the script's venv-detection branch
+  will fall through to the system Python).
+
+To finish the move, edit the file inside the `clients` sub-repo:
+
+```bash
+# 1. Update the path (and drop the venv block if you no longer want it):
+cd clients
+$EDITOR scripts/start_stub_server.sh
+#    change:  STUB_DIR="$REPO_ROOT/clients/test-stub-server"
+#    to:      STUB_DIR="$REPO_ROOT/test-harness/stub-server"
+
+# 2. Sanity-check it resolves from the clients/ root:
+ls ../test-harness/stub-server/server.py
+
+# 3. Run it and commit inside the clients sub-repo:
+./scripts/start_stub_server.sh        # should boot the stub on :$STUB_PORT
+git -C . add scripts/start_stub_server.sh
+git -C . commit -m "Point start_stub_server.sh at the moved test-harness path"
+```
+
 ## One-shot checkout
 
 ```bash
