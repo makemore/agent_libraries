@@ -1,0 +1,10 @@
+# Install all agent libraries in editable mode
+# Usage: pip install -r ~/Projects/agent_libraries/local_install.txt
+
+-e /Users/chris/Projects/agent_libraries/agent/agent_runtime_core
+-e /Users/chris/Projects/agent_libraries/agent/django_agent_runtime
+# parrot-django is a hard dependency of django-agent-studio but is published
+# only on the private makemore index; install the in-repo source editable so
+# the dependency resolves locally without --extra-index-url / auth.
+-e /Users/chris/Projects/agent_libraries/parrot/parrot-django
+-e /Users/chris/Projects/agent_libraries/agent/django_agent_studio

@@ -1,0 +1,35 @@
+{
+  "name": "required_action",
+  "description": "A run pauses because the client must present a generic required action card before it can be resumed.",
+  "run_id": "test-run-required-action-001",
+  "conversation_id": "test-conv-required-action-001",
+  "events": [
+    {
+      "delay_ms": 20,
+      "event": "assistant.delta",
+      "payload": { "delta": "I need one more step before I can continue." }
+    },
+    {
+      "delay_ms": 20,
+      "event": "assistant.message",
+      "payload": {
+        "role": "assistant",
+        "content": "I need one more step before I can continue."
+      }
+    },
+    {
+      "delay_ms": 0,
+      "event": "client.action.required",
+      "payload": {
+        "action_id": "act-connect-calendar-001",
+        "action_type": "oauth",
+        "title": "Connect calendar",
+        "message": "Connect your calendar so the agent can check availability.",
+        "action_url": "https://example.invalid/connect/calendar",
+        "action_label": "Connect",
+        "metadata": { "provider": "calendar" },
+        "resume_hint": { "strategy": "resume_run" }
+      }
+    }
+  ]
+}

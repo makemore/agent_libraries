@@ -1,0 +1,66 @@
+{
+  "name": "sai_multi_agent_with_blocks",
+  "description": "S'Ai-style multi-agent run where the specialist sub-agent invokes a tool that emits content.blocks (callout + actionButtons + cardList), then narrates the result. The parent then closes the turn.",
+  "run_id": "test-run-sai-blocks-001",
+  "conversation_id": "test-conv-sai-blocks-001",
+  "events": [
+    { "delay_ms": 20, "event": "assistant.delta",   "payload": { "delta": "Let me check your account..." } },
+    { "delay_ms": 30, "event": "assistant.message", "payload": { "role": "assistant", "content": "Let me check your account..." } },
+
+    { "delay_ms": 40, "event": "sub_agent.start",   "payload": {
+        "sub_agent_key": "sai_account_specialist",
+        "agent_name": "Account Specialist",
+        "invocation_mode": "handoff"
+      }
+    },
+
+    { "delay_ms": 30, "event": "assistant.delta",   "payload": { "delta": "Pulling your details" } },
+    { "delay_ms": 30, "event": "assistant.delta",   "payload": { "delta": " now." } },
+    { "delay_ms": 30, "event": "assistant.message", "payload": { "role": "assistant", "content": "Pulling your details now." } },
+
+    { "delay_ms": 40, "event": "tool.call",         "payload": { "id": "call_acct_001", "name": "get_account_summary", "arguments": "{}" } },
+    { "delay_ms": 80, "event": "tool.result",       "payload": { "tool_call_id": "call_acct_001", "name": "get_account_summary", "result": { "status": "ok" } } },
+    { "delay_ms": 20, "event": "content.blocks",    "payload": {
+        "tool_call_id": "call_acct_001",
+        "tool_name": "get_account_summary",
+        "blocks": [
+          {
+            "type": "callout",
+            "style": "info",
+            "title": "Account in good standing",
+            "body": "Your next bill of $42.00 is due on the 14th."
+          },
+          {
+            "type": "cardList",
+            "layout": "vertical",
+            "items": [
+              { "type": "card", "title": "Plan",    "subtitle": "Pro Monthly", "badge": "Active" },
+              { "type": "card", "title": "Storage", "subtitle": "12.4 / 50 GB" }
+            ]
+          },
+          {
+            "type": "actionButtons",
+            "buttons": [
+              { "type": "callback", "label": "Pay now",     "callbackId": "pay_invoice", "style": "primary"  },
+              { "type": "link",     "label": "View invoice", "url": "https://example.com/invoice/42", "style": "secondary" }
+            ]
+          }
+        ]
+      }
+    },
+
+    { "delay_ms": 30, "event": "assistant.delta",   "payload": { "delta": "Here's a quick summary." } },
+    { "delay_ms": 30, "event": "assistant.message", "payload": { "role": "assistant", "content": "Here's a quick summary." } },
+
+    { "delay_ms": 40, "event": "sub_agent.end",     "payload": {
+        "sub_agent_key": "sai_account_specialist",
+        "agent_name": "Account Specialist"
+      }
+    },
+
+    { "delay_ms": 30, "event": "assistant.delta",   "payload": { "delta": "Here's a quick summary." } },
+    { "delay_ms": 30, "event": "assistant.message", "payload": { "role": "assistant", "content": "Here's a quick summary." } },
+
+    { "delay_ms":  0, "event": "run.succeeded",     "payload": {} }
+  ]
+}

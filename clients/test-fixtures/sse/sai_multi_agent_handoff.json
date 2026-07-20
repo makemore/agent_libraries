@@ -1,0 +1,36 @@
+{
+  "name": "sai_multi_agent_handoff",
+  "description": "S'Ai-style multi-agent run. The router/parent streams a brief intro, hands off to a specialist sub-agent which streams the substantive answer, then the parent re-emits the same answer (echo) which the client must suppress so the sub-agent's bubble is not duplicated.",
+  "run_id": "test-run-sai-handoff-001",
+  "conversation_id": "test-conv-sai-handoff-001",
+  "events": [
+    { "delay_ms": 20, "event": "assistant.delta",   "payload": { "delta": "One moment" } },
+    { "delay_ms": 30, "event": "assistant.delta",   "payload": { "delta": " — let me bring in our therapist." } },
+    { "delay_ms": 30, "event": "assistant.message", "payload": { "role": "assistant", "content": "One moment — let me bring in our therapist." } },
+
+    { "delay_ms": 40, "event": "sub_agent.start",   "payload": {
+        "sub_agent_key": "sai_therapist",
+        "agent_name": "S'Ai Therapist",
+        "invocation_mode": "handoff"
+      }
+    },
+
+    { "delay_ms": 30, "event": "assistant.delta",   "payload": { "delta": "Hi, I'm here" } },
+    { "delay_ms": 30, "event": "assistant.delta",   "payload": { "delta": " to listen." } },
+    { "delay_ms": 30, "event": "assistant.delta",   "payload": { "delta": " Could you tell me a" } },
+    { "delay_ms": 30, "event": "assistant.delta",   "payload": { "delta": " little about what's on" } },
+    { "delay_ms": 30, "event": "assistant.delta",   "payload": { "delta": " your mind?" } },
+    { "delay_ms": 30, "event": "assistant.message", "payload": { "role": "assistant", "content": "Hi, I'm here to listen. Could you tell me a little about what's on your mind?" } },
+
+    { "delay_ms": 40, "event": "sub_agent.end",     "payload": {
+        "sub_agent_key": "sai_therapist",
+        "agent_name": "S'Ai Therapist"
+      }
+    },
+
+    { "delay_ms": 30, "event": "assistant.delta",   "payload": { "delta": "Hi, I'm here to listen. Could you tell me a little about what's on your mind?" } },
+    { "delay_ms": 30, "event": "assistant.message", "payload": { "role": "assistant", "content": "Hi, I'm here to listen. Could you tell me a little about what's on your mind?" } },
+
+    { "delay_ms":  0, "event": "run.succeeded",     "payload": {} }
+  ]
+}

@@ -1,0 +1,22 @@
+{
+  "name": "required_action_lifecycle",
+  "description": "Client-side required-action lifecycle markers around the backend's client.action.required event.",
+  "run_id": "test-run-action-lifecycle-001",
+  "conversation_id": "test-conv-action-lifecycle-001",
+  "events": [
+    { "delay_ms": 0, "event": "client.action.required", "payload": {
+      "action_id": "act-approval-001",
+      "action_type": "approval",
+      "title": "Approve action",
+      "message": "Approve this generic agent action.",
+      "action_label": "Approve",
+      "metadata": { "scope": "generic" },
+      "resume_hint": { "strategy": "resume_run" }
+    } },
+    { "delay_ms": 0, "event": "client.action.submitted", "payload": { "action_id": "act-approval-001" } },
+    { "delay_ms": 0, "event": "client.action.resolved", "payload": { "action_id": "act-approval-001" } },
+    { "delay_ms": 0, "event": "run.resumed", "payload": {} },
+    { "delay_ms": 20, "event": "assistant.message", "payload": { "role": "assistant", "content": "Thanks, continuing now." } },
+    { "delay_ms": 0, "event": "run.succeeded", "payload": {} }
+  ]
+}

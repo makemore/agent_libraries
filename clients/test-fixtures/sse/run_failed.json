@@ -1,0 +1,12 @@
+{
+  "name": "run_failed",
+  "description": "Partial stream interrupted by run.failed. The client should keep the partial bubble and surface the error.",
+  "run_id": "test-run-failed-001",
+  "conversation_id": "test-conv-failed-001",
+  "events": [
+    { "delay_ms": 20, "event": "assistant.delta", "payload": { "delta": "Looking into" } },
+    { "delay_ms": 30, "event": "assistant.delta", "payload": { "delta": " that for" } },
+    { "delay_ms": 30, "event": "assistant.delta", "payload": { "delta": " you" } },
+    { "delay_ms": 40, "event": "run.failed",      "payload": { "error": "Upstream provider unavailable", "code": "provider_error" } }
+  ]
+}

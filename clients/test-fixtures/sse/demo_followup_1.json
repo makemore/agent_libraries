@@ -1,0 +1,27 @@
+{
+  "name": "demo_followup_1",
+  "description": "Short follow-up turn for the multi-turn demo: user confirms the booking, agent acknowledges with a quick streamed reply and a success callout. Designed to chain after demo_big_conversation.",
+  "run_id": "demo-trip-followup-1",
+  "conversation_id": "demo-trip-conv-001",
+  "next_fixture": "demo_followup_2",
+  "events": [
+    { "delay_ms": 200, "event": "assistant.delta",   "payload": { "delta": "Locking it in" } },
+    { "delay_ms": 60,  "event": "assistant.delta",   "payload": { "delta": " — booking now…" } },
+    { "delay_ms": 250, "event": "tool.call",         "payload": { "id": "call_book_confirm", "name": "book_hotel", "arguments": "{\"hotel_id\":1}" } },
+    { "delay_ms": 700, "event": "tool.result",       "payload": { "tool_call_id": "call_book_confirm", "name": "book_hotel", "result": { "status": "ok", "confirmation": "TRP-7821" } } },
+    { "delay_ms": 150, "event": "content.blocks",    "payload": {
+        "tool_call_id": "call_book_confirm",
+        "tool_name": "book_hotel",
+        "blocks": [
+          { "type": "callout", "style": "success", "title": "Hotel booked",
+            "body": "Confirmation TRP-7821 — Shibuya Sky Hotel, 3 nights." }
+        ]
+      }
+    },
+    { "delay_ms": 200, "event": "assistant.delta",   "payload": { "delta": "Done." } },
+    { "delay_ms": 60,  "event": "assistant.delta",   "payload": { "delta": " Want me to add the trip" } },
+    { "delay_ms": 60,  "event": "assistant.delta",   "payload": { "delta": " to your calendar?" } },
+    { "delay_ms": 80,  "event": "assistant.message", "payload": { "role": "assistant", "content": "Done. Want me to add the trip to your calendar?" } },
+    { "delay_ms": 100, "event": "run.succeeded",     "payload": {} }
+  ]
+}

@@ -1,0 +1,15 @@
+{
+  "name": "malformed_unknown_event",
+  "description": "Unknown named events should be preserved by parser/reducer; malformed raw frames are listed for parser tests.",
+  "run_id": "test-run-unknown-001",
+  "conversation_id": "test-conv-unknown-001",
+  "events": [
+    { "delay_ms": 0, "event": "run.started", "payload": { "agent_key": "test-agent" } },
+    { "delay_ms": 0, "event": "vendor.future_event", "payload": { "value": 42 } },
+    { "delay_ms": 20, "event": "assistant.message", "payload": { "role": "assistant", "content": "Unknown events are safe." } },
+    { "delay_ms": 0, "event": "run.succeeded", "payload": {} }
+  ],
+  "malformed_frames": [
+    "event: assistant.delta\ndata: {not-json}\n\n"
+  ]
+}

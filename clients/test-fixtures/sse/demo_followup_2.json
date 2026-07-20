@@ -1,0 +1,26 @@
+{
+  "name": "demo_followup_2",
+  "description": "Final follow-up turn for the multi-turn demo: user asks to add the trip to their calendar, agent confirms with a short streamed reply. Terminates the chain (no next_fixture).",
+  "run_id": "demo-trip-followup-2",
+  "conversation_id": "demo-trip-conv-001",
+  "events": [
+    { "delay_ms": 200, "event": "assistant.delta",   "payload": { "delta": "On it" } },
+    { "delay_ms": 60,  "event": "assistant.delta",   "payload": { "delta": " — adding all three days" } },
+    { "delay_ms": 60,  "event": "assistant.delta",   "payload": { "delta": " to your calendar now." } },
+    { "delay_ms": 250, "event": "tool.call",         "payload": { "id": "call_calendar", "name": "add_to_calendar", "arguments": "{\"days\":3}" } },
+    { "delay_ms": 600, "event": "tool.result",       "payload": { "tool_call_id": "call_calendar", "name": "add_to_calendar", "result": { "status": "ok", "events_added": 3 } } },
+    { "delay_ms": 150, "event": "content.blocks",    "payload": {
+        "tool_call_id": "call_calendar",
+        "tool_name": "add_to_calendar",
+        "blocks": [
+          { "type": "callout", "style": "success", "title": "Calendar updated",
+            "body": "3 events added: Day 1 (Shibuya), Day 2 (Asakusa), Day 3 (Toyosu)." }
+        ]
+      }
+    },
+    { "delay_ms": 200, "event": "assistant.delta",   "payload": { "delta": "All set" } },
+    { "delay_ms": 60,  "event": "assistant.delta",   "payload": { "delta": " — have a great trip!" } },
+    { "delay_ms": 80,  "event": "assistant.message", "payload": { "role": "assistant", "content": "All set — have a great trip!" } },
+    { "delay_ms": 100, "event": "run.succeeded",     "payload": {} }
+  ]
+}

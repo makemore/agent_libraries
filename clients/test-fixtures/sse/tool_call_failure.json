@@ -1,0 +1,13 @@
+{
+  "name": "tool_call_failure",
+  "description": "A tool call completes with an error-shaped result while the run continues and succeeds.",
+  "run_id": "test-run-tool-fail-001",
+  "conversation_id": "test-conv-tool-fail-001",
+  "events": [
+    { "delay_ms": 0, "event": "run.started", "payload": { "agent_key": "test-agent", "attempt": 1 } },
+    { "delay_ms": 20, "event": "tool.call", "payload": { "id": "call_fail_001", "name": "lookup_record", "arguments": "{\"id\":\"missing\"}" } },
+    { "delay_ms": 40, "event": "tool.result", "payload": { "tool_call_id": "call_fail_001", "name": "lookup_record", "result": { "error": "record_not_found", "recoverable": true } } },
+    { "delay_ms": 20, "event": "assistant.message", "payload": { "role": "assistant", "content": "I could not find that record." } },
+    { "delay_ms": 0, "event": "run.succeeded", "payload": {} }
+  ]
+}

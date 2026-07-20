@@ -1,0 +1,279 @@
+# Agent Runtime + Conduit Integration
+
+> How the agent_runtime_core and django_agent_runtime libraries integrate with
+> Conduit to give AI agents remote execution environments (VMs) for coding,
+> DevOps, and long-running tasks.
+
+## Architecture Overview
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│  Django App (agent_studio)                                      │
+│  ┌───────────────────────────────────────────────────────────┐  │
+│  │  django_agent_runtime                                     │  │
+│  │  • DynamicAgentRuntime — database-driven agent configs    │  │
+│  │  • _create_conduit_handler() — wires provider + tools     │  │
+│  │  • ActiveSession model — persists sessions across restarts│  │
+│  │  • conduit/persistence.py — save/load/delete helpers      │  │
+│  │  • Auto-injects env vars: ANTHROPIC_API_KEY, OPENAI_API_  │  │
+│  │    KEY, GITEA_API_URL, GITEA_API_KEY                      │  │
+│  └───────────────────────────────────────────────────────────┘  │
+│  ┌───────────────────────────────────────────────────────────┐  │
+│  │  agent_runtime_core.execution                             │  │
+│  │  • RemoteExecutionProvider — abstract interface           │  │
+│  │  • ConduitClient — async HTTP client for Conduit API      │  │
+│  │  • ConduitExecutionProvider — provider implementation     │  │
+│  │  • RemoteExecutionToolHandler — routes agent tool calls   │  │
+│  │  • Tool schemas — OpenAI function-calling format          │  │
+│  └───────────────────────────────────────────────────────────┘  │
+└──────────────────────────┬──────────────────────────────────────┘
+                           │ HTTPS
+                           ▼
+┌─────────────────────────────────────────────────────────────────┐
+│  Conduit API (https://api.myconduit.io/api/v1)                  │
+│  • Session management — create, status, heartbeat, kill         │
+│  • Sync exec — POST /exec/ (quick commands, <5 min)             │
+│  • Async exec — POST /exec/async/ + GET /exec/jobs/{id}/        │
+│  • File transfer — GET/POST /files/                             │
+│  • Warm pool — pre-provisioned pods for fast startup             │
+│  • Persistent volumes — /home/conduit/workspace survives restarts│
+└──────────────────────────┬──────────────────────────────────────┘
+                           │
+                           ▼
+┌─────────────────────────────────────────────────────────────────┐
+│  Conduit Pod (Kubernetes)                                       │
+│  • Ubuntu-based VM with dev tools                               │
+│  • Installed: claude, aider, python3, node, git, docker         │
+│  • Injected env vars for LLM + git access                      │
+│  • Typical lifetime: 10 min – 24 hours                          │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+## Layer 1: agent_runtime_core (pure Python, no Django)
+
+### Key Files
+
+- `execution/provider.py` — Abstract interfaces: `RemoteExecutionProvider`, `CommandResult`, `SessionInfo`
+- `execution/conduit_client.py` — Low-level async HTTP client wrapping every Conduit API endpoint
+- `execution/conduit_provider.py` — `ConduitExecutionProvider` implementing the abstract interface
+- `execution/tools.py` — Tool schemas + `RemoteExecutionToolHandler` for agent integration
+
+### ConduitExecutionProvider
+
+The main class agents interact with. Created with connection details and optional config:
+
+```python
+from agent_runtime_core.execution.conduit_provider import ConduitExecutionProvider
+
+provider = ConduitExecutionProvider(
+    api_url="https://api.myconduit.io/api/v1",
+    api_key="ck_live_...",
+    machine_tier="small",           # "small", "medium", "large"
+    environment={                    # Env vars injected into the pod
+        "ANTHROPIC_API_KEY": "sk-ant-...",
+        "GITEA_API_KEY": "...",
+    },
+    persistent_volume=False,         # Mount persistent disk at /home/conduit/workspace
+    volume_label=None,               # Same label = same disk across sessions
+    default_max_lifetime_minutes=60, # Max 1440 (24h)
+    default_idle_timeout_minutes=10, # Max 120 (2h)
+)
+```
+
+#### Core Methods
+
+| Method | Purpose |
+|--------|---------|
+| `create_session(name, ...)` | Provision a pod. Polls until ready. Starts background heartbeat. |
+| `exec_command(session_id, command)` | Sync exec via `/exec/`. Returns `CommandResult`. Good for <5 min commands. |
+| `start_async_exec(session_id, command)` | Start long-running command. Returns `job_id`. |
+| `poll_async_job(session_id, job_id)` | Get job status + accumulated stdout/stderr. |
+| `exec_async_and_wait(session_id, command)` | Convenience: start + poll loop. Returns `CommandResult`. |
+| `kill_async_job(session_id, job_id)` | Cancel a running async job. |
+| `read_file(session_id, path)` | Read file contents from pod. |
+| `write_file(session_id, path, content)` | Write file to pod. |
+| `check_session(session_id)` | Get session status + send heartbeat. |
+| `destroy_session(session_id)` | Kill session and clean up. Stops heartbeat. |
+
+#### Background Heartbeat
+
+When `create_session()` is called, a background asyncio task sends heartbeats every 3 minutes
+via the `/heartbeat/` endpoint. This prevents the idle timeout from killing sessions during
+long-running commands. The heartbeat stops automatically on `destroy_session()` or `close()`.
+
+### RemoteExecutionToolHandler
+
+Routes agent tool calls to provider methods. Tool schemas are in OpenAI function-calling format.
+
+```python
+from agent_runtime_core.execution import (
+    RemoteExecutionToolHandler,
+    get_execution_tool_schemas,
+    EXECUTION_TOOL_NAMES,
+)
+
+handler = RemoteExecutionToolHandler(provider)
+tools = get_execution_tool_schemas()  # Add to agent's tool list
+
+# In the agent loop:
+if tool_name in EXECUTION_TOOL_NAMES:
+    result_json = await handler.execute(tool_name, tool_args)
+```
+
+#### Available Tools
+
+| Tool Name | Args | Description |
+|-----------|------|-------------|
+| `remote_run_command` | `command`, `working_dir?` | **PRIMARY tool.** Run any command. Auto-creates session if needed. State persists between calls. Uses async exec for long commands (claude, aider, npm test, etc.). Always prefer this. |
+| `remote_create_session` | `name`, `working_dir?`, `max_lifetime_minutes?` | Explicitly create a named session. Usually not needed — `remote_run_command` auto-creates one. |
+| `remote_send_command` | `command` | Send raw stdin input to interactive programs (REPLs, prompts). Not for normal commands. |
+| `remote_read_output` | — | Read terminal buffer. Only needed after `remote_send_command`. |
+| `remote_check_session` | — | Check status + remaining time. |
+| `remote_read_file` | `path` | Read a file from the pod. |
+| `remote_write_file` | `path`, `content` | Write a file to the pod. |
+| `remote_done` | — | Destroy session and clean up. Agent should always call this when finished. |
+
+#### Auto-detection of Long-Running Commands
+
+`remote_run_command` automatically uses async exec (with polling) for commands that start with:
+`claude`, `aider`, `npm run build`, `npm test`, `yarn build`, `yarn test`, `make`, `cargo build`, `cargo test`.
+All other commands use sync exec (faster, simpler).
+
+## Layer 2: django_agent_runtime (Django integration)
+
+### Session Persistence
+
+The `ActiveSession` model stores session_id + device_id in the database so that
+sessions survive Django server restarts:
+
+```
+ActiveSession
+├── agent_run_id    — "{agent_slug}:{conversation_id}" (unique key)
+├── session_id      — Conduit session UUID
+├── device_id       — Conduit device UUID (needed to route commands)
+├── provider_config — JSON: {api_url, machine_tier, ...}
+├── created_at      — Auto-set
+└── last_heartbeat_at — Auto-updated
+```
+
+**Lifecycle:**
+1. Agent creates session → `save_session()` writes to DB
+2. Same conversation, new message → `load_session()` reconnects to existing pod
+3. Django restarts → next message loads session from DB → reconnects
+4. Agent calls `remote_done` → `delete_session()` removes record
+5. `cleanup()` on run end does NOT destroy the session — it persists for the next message
+
+### How Conduit Gets Wired In (dynamic.py)
+
+When a dynamic agent has `conduit_enabled: true` in its extra_config:
+
+1. `DynamicAgentRuntime.run()` calls `_create_conduit_handler(extra_config, conversation_id)`
+2. The handler method:
+   - Creates `ConduitExecutionProvider` with config from settings + agent overrides
+   - Auto-injects env vars: `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `GITEA_API_URL`, `GITEA_API_KEY`
+   - Sets up persistence callbacks (`on_session_created`, `on_session_destroyed`)
+   - Checks DB for existing session → reconnects if found
+3. Returns `RemoteExecutionToolHandler` — the runtime adds its tools to the agent's tool list
+4. During the agent loop, tool calls matching `EXECUTION_TOOL_NAMES` are routed to the handler
+
+### Configuration
+
+**Django settings** (`AGENT_RUNTIME` dict in settings):
+
+```python
+AGENT_RUNTIME = {
+    'CONDUIT_ENABLED': True,
+    'CONDUIT_API_URL': 'https://api.myconduit.io/api/v1',
+    'CONDUIT_API_KEY': 'ck_live_...',
+    'CONDUIT_DEFAULT_MACHINE_TIER': 'small',
+    'CONDUIT_DEFAULT_MAX_LIFETIME_MINUTES': 60,
+    'CONDUIT_DEFAULT_IDLE_TIMEOUT_MINUTES': 10,
+    'GITEA_API_URL': 'https://git.shipwright.cloud/',
+    'GITEA_API_KEY': '...',
+}
+```
+
+All of these fall back to environment variables of the same name.
+
+**Per-agent overrides** (in AgentVersion.extra_config):
+
+```json
+{
+    "conduit_enabled": true,
+    "conduit_machine_tier": "medium",
+    "conduit_max_lifetime_minutes": 240,
+    "conduit_idle_timeout_minutes": 30,
+    "conduit_persistent_volume": true,
+    "conduit_volume_label": "my-project-workspace",
+    "conduit_environment": {
+        "CUSTOM_VAR": "value"
+    }
+}
+```
+
+## Typical Agent Flow
+
+```
+User: "Create a todo app and push it to Gitea"
+                    │
+                    ▼
+Agent calls remote_run_command("git config user.name 'Agent'")
+  → No active session → auto-creates Conduit session
+  → Pod provisions from warm pool (~5-15 sec)
+  → Session saved to ActiveSession table
+  → Command runs via /exec/ endpoint
+  → Returns: {success: true, output: ""}
+                    │
+                    ▼
+Agent calls remote_run_command("curl -X POST .../repos ...")
+  → Reuses existing session
+  → Creates Gitea repo via API
+  → Returns: {success: true, output: "{repo JSON}"}
+                    │
+                    ▼
+Agent calls remote_write_file("/tmp/app/index.html", "<html>...")
+  → Writes file directly via /files/ endpoint
+                    │
+                    ▼
+Agent calls remote_run_command("cd /tmp/app && git add . && git commit && git push")
+  → Code pushed to Gitea
+                    │
+                    ▼
+Agent calls remote_done()
+  → Session destroyed, ActiveSession record deleted
+```
+
+For long-running commands (e.g., `claude -p "build the auth module"`):
+
+```
+Agent calls remote_run_command("claude -p '...'")
+  → Detected as long-running (starts with "claude ")
+  → Uses async exec: POST /exec/async/ → returns job_id
+  → Polls GET /exec/jobs/{job_id}/ every 5 seconds
+  → Background heartbeat keeps session alive
+  → Eventually returns completed CommandResult
+```
+
+## File Locations
+
+```
+agent/
+├── agent_runtime_core/
+│   └── agent_runtime_core/
+│       └── execution/
+│           ├── __init__.py              # Public API exports
+│           ├── provider.py              # Abstract: RemoteExecutionProvider, CommandResult, SessionInfo
+│           ├── conduit_client.py        # Low-level async HTTP client for Conduit API
+│           ├── conduit_provider.py      # ConduitExecutionProvider implementation
+│           └── tools.py                 # Tool schemas + RemoteExecutionToolHandler
+│
+├── django_agent_runtime/
+│   ├── models/concrete.py              # ActiveSession model
+│   ├── conduit/
+│   │   └── persistence.py              # save_session, load_session, delete_session
+│   ├── runtime/dynamic.py              # _create_conduit_handler() wiring
+│   ├── conf.py                         # AgentRuntimeSettings (CONDUIT_*, GITEA_*)
+│   └── admin.py                        # ActiveSessionAdmin
+│
+└── agent_runtime_conduit.llms.txt      # This file
+```

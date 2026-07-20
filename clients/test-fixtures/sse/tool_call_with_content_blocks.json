@@ -1,0 +1,47 @@
+{
+  "name": "tool_call_with_content_blocks",
+  "description": "Streamed prelude, then a tool call whose result emits a content.blocks event with a card and a table, then a final assistant message.",
+  "run_id": "test-run-blocks-001",
+  "conversation_id": "test-conv-blocks-001",
+  "events": [
+    { "delay_ms": 20, "event": "assistant.delta",   "payload": { "delta": "Let me look that up" } },
+    { "delay_ms": 30, "event": "assistant.delta",   "payload": { "delta": " for you" } },
+    { "delay_ms": 30, "event": "assistant.delta",   "payload": { "delta": "..." } },
+    { "delay_ms": 30, "event": "assistant.message", "payload": { "role": "assistant", "content": "Let me look that up for you..." } },
+    { "delay_ms": 40, "event": "tool.call",         "payload": { "id": "call_001", "name": "search_listings", "arguments": "{\"query\": \"beach houses\"}" } },
+    { "delay_ms": 80, "event": "tool.result",       "payload": { "tool_call_id": "call_001", "name": "search_listings", "result": { "status": "ok", "count": 2 } } },
+    { "delay_ms": 20, "event": "content.blocks",    "payload": {
+        "tool_call_id": "call_001",
+        "tool_name": "search_listings",
+        "blocks": [
+          {
+            "type": "card",
+            "title": "Beach House",
+            "subtitle": "$450/night",
+            "badge": "Featured",
+            "image": "https://example.com/beach.jpg",
+            "metadata": [
+              { "label": "Sleeps",  "value": "6" },
+              { "label": "Rating",  "value": "4.8" }
+            ],
+            "actions": [
+              { "type": "link", "label": "View", "url": "https://example.com/listings/1", "style": "primary" }
+            ]
+          },
+          {
+            "type": "table",
+            "headers": ["Listing", "Price", "Sleeps"],
+            "rows": [
+              ["Beach House",     "$450",  "6"],
+              ["Mountain Cabin",  "$320",  "4"]
+            ]
+          }
+        ]
+      }
+    },
+    { "delay_ms": 30, "event": "assistant.delta",   "payload": { "delta": "I found 2 options" } },
+    { "delay_ms": 30, "event": "assistant.delta",   "payload": { "delta": " that match." } },
+    { "delay_ms": 30, "event": "assistant.message", "payload": { "role": "assistant", "content": "I found 2 options that match." } },
+    { "delay_ms":  0, "event": "run.succeeded",     "payload": {} }
+  ]
+}

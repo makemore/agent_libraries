@@ -1,0 +1,141 @@
+{
+  "name": "demo_big_conversation",
+  "description": "Long, slow-paced fixture for hand-watching the streaming UI. One user turn (\"plan a 3-day trip to Tokyo\") triggers a S'Ai-style multi-agent run with three sub-agents (Researcher, Booking, Itinerary Writer) and exercises most of the content-block renderers (callout, cardList, table, status, card, actionButtons, collapsible, code, divider). Chains into demo_followup_1 / demo_followup_2 so the host app can demonstrate multi-turn user follow-ups. Not for CI.",
+  "run_id": "demo-trip-run-001",
+  "conversation_id": "demo-trip-conv-001",
+  "next_fixture": "demo_followup_1",
+  "events": [
+    { "delay_ms": 600,  "event": "assistant.delta",   "payload": { "delta": "Sounds great" } },
+    { "delay_ms": 70,   "event": "assistant.delta",   "payload": { "delta": " — let me put my team on this" } },
+    { "delay_ms": 70,   "event": "assistant.delta",   "payload": { "delta": " and pull together a real itinerary." } },
+    { "delay_ms": 80,   "event": "assistant.message", "payload": { "role": "assistant", "content": "Sounds great — let me put my team on this and pull together a real itinerary." } },
+
+    { "delay_ms": 500,  "event": "sub_agent.start",   "payload": { "sub_agent_key": "sai_researcher", "agent_name": "Tokyo Researcher", "invocation_mode": "handoff" } },
+
+    { "delay_ms": 80,   "event": "assistant.delta",   "payload": { "delta": "Hi! I'll dig up" } },
+    { "delay_ms": 70,   "event": "assistant.delta",   "payload": { "delta": " the best neighbourhoods" } },
+    { "delay_ms": 70,   "event": "assistant.delta",   "payload": { "delta": " and headline attractions for you." } },
+    { "delay_ms": 80,   "event": "assistant.message", "payload": { "role": "assistant", "content": "Hi! I'll dig up the best neighbourhoods and headline attractions for you." } },
+
+    { "delay_ms": 350,  "event": "tool.call",         "payload": { "id": "call_research_001", "name": "search_destinations", "arguments": "{\"city\":\"Tokyo\",\"days\":3}" } },
+    { "delay_ms": 1200, "event": "tool.result",       "payload": { "tool_call_id": "call_research_001", "name": "search_destinations", "result": { "status": "ok", "neighborhoods": 4, "attractions": 5 } } },
+    { "delay_ms": 200,  "event": "content.blocks",    "payload": {
+        "tool_call_id": "call_research_001",
+        "tool_name": "search_destinations",
+        "blocks": [
+          { "type": "callout", "style": "info", "title": "Did you know?", "body": "Tokyo's metro carries over 8 million riders a day — buying a Suica card on arrival is the single biggest time-saver." },
+          { "type": "cardList", "layout": "vertical", "items": [
+              { "type": "card", "title": "Shibuya",  "subtitle": "Energetic, neon, food", "badge": "Stay nearby" },
+              { "type": "card", "title": "Asakusa",  "subtitle": "Traditional, temples",   "badge": "Day 2" },
+              { "type": "card", "title": "Shinjuku", "subtitle": "Skyline + nightlife",    "badge": "Evening" },
+              { "type": "card", "title": "Harajuku", "subtitle": "Fashion + Meiji Shrine"                       }
+          ]},
+          { "type": "table",
+            "headers": ["Attraction", "Neighbourhood", "Time"],
+            "rows": [
+              ["Senso-ji Temple",       "Asakusa",  "1.5 h"],
+              ["Shibuya Crossing",      "Shibuya",  "0.5 h"],
+              ["Meiji Shrine",          "Harajuku", "1.0 h"],
+              ["Tokyo Skytree",         "Sumida",   "2.0 h"],
+              ["teamLab Planets",       "Toyosu",   "2.5 h"]
+            ]
+          }
+        ]
+      }
+    },
+    { "delay_ms": 250,  "event": "assistant.delta",   "payload": { "delta": "Those should give you" } },
+    { "delay_ms": 70,   "event": "assistant.delta",   "payload": { "delta": " a good geographic spread." } },
+    { "delay_ms": 70,   "event": "assistant.message", "payload": { "role": "assistant", "content": "Those should give you a good geographic spread." } },
+    { "delay_ms": 300,  "event": "sub_agent.end",     "payload": { "sub_agent_key": "sai_researcher", "agent_name": "Tokyo Researcher" } },
+
+    { "delay_ms": 600,  "event": "assistant.delta",   "payload": { "delta": "Nice. Now let me get someone" } },
+    { "delay_ms": 70,   "event": "assistant.delta",   "payload": { "delta": " to look at where you'll stay." } },
+    { "delay_ms": 80,   "event": "assistant.message", "payload": { "role": "assistant", "content": "Nice. Now let me get someone to look at where you'll stay." } },
+
+    { "delay_ms": 500,  "event": "sub_agent.start",   "payload": { "sub_agent_key": "sai_booking", "agent_name": "Booking Specialist", "invocation_mode": "handoff" } },
+
+    { "delay_ms": 80,   "event": "assistant.delta",   "payload": { "delta": "On it." } },
+    { "delay_ms": 60,   "event": "assistant.message", "payload": { "role": "assistant", "content": "On it." } },
+    { "delay_ms": 350,  "event": "tool.call",         "payload": { "id": "call_book_001", "name": "find_hotels", "arguments": "{\"area\":\"Shibuya\",\"nights\":3}" } },
+    { "delay_ms": 1500, "event": "tool.result",       "payload": { "tool_call_id": "call_book_001", "name": "find_hotels", "result": { "status": "ok", "hotels": 1 } } },
+    { "delay_ms": 200,  "event": "content.blocks",    "payload": {
+        "tool_call_id": "call_book_001",
+        "tool_name": "find_hotels",
+        "blocks": [
+          { "type": "status", "title": "Live availability", "subtitle": "Updated just now", "style": "success" },
+          { "type": "card",
+            "title": "Shibuya Sky Hotel",
+            "subtitle": "5 min walk to Shibuya Crossing",
+            "badge": "Best match",
+            "image": "https://placehold.co/600x400?text=Shibuya+Sky",
+            "metadata": [
+              { "label": "Rate",   "value": "¥28,500 / night" },
+              { "label": "Rating", "value": "4.7 ★ (1,204 reviews)" },
+              { "label": "Wifi",   "value": "Included" }
+            ],
+            "actions": [
+              { "type": "link", "label": "View on Booking", "url": "https://example.com/hotel/1", "style": "primary" }
+            ]
+          },
+          { "type": "actionButtons", "buttons": [
+              { "type": "callback", "label": "Book this hotel",   "callbackId": "book_hotel_1", "style": "primary"  },
+              { "type": "callback", "label": "Show alternatives", "callbackId": "more_hotels",  "style": "secondary"},
+              { "type": "link",     "label": "Map directions",    "url": "https://maps.example/?q=Shibuya+Sky" }
+          ]}
+        ]
+      }
+    },
+    { "delay_ms": 250,  "event": "assistant.delta",   "payload": { "delta": "I'd grab this one" } },
+    { "delay_ms": 70,   "event": "assistant.delta",   "payload": { "delta": " — central, well reviewed, fits your dates." } },
+    { "delay_ms": 70,   "event": "assistant.message", "payload": { "role": "assistant", "content": "I'd grab this one — central, well reviewed, fits your dates." } },
+    { "delay_ms": 300,  "event": "sub_agent.end",     "payload": { "sub_agent_key": "sai_booking", "agent_name": "Booking Specialist" } },
+
+    { "delay_ms": 600,  "event": "assistant.delta",   "payload": { "delta": "Great. Last step:" } },
+    { "delay_ms": 70,   "event": "assistant.delta",   "payload": { "delta": " let me hand off to the itinerary writer." } },
+    { "delay_ms": 80,   "event": "assistant.message", "payload": { "role": "assistant", "content": "Great. Last step: let me hand off to the itinerary writer." } },
+
+    { "delay_ms": 500,  "event": "sub_agent.start",   "payload": { "sub_agent_key": "sai_writer", "agent_name": "Itinerary Writer", "invocation_mode": "handoff" } },
+
+    { "delay_ms": 80,   "event": "assistant.delta",   "payload": { "delta": "Here's a 3-day plan you can actually follow.\n\n" } },
+    { "delay_ms": 70,   "event": "assistant.delta",   "payload": { "delta": "**Day 1 — Shibuya & Harajuku.** " } },
+    { "delay_ms": 70,   "event": "assistant.delta",   "payload": { "delta": "Land, drop bags, grab tonkatsu for lunch, " } },
+    { "delay_ms": 70,   "event": "assistant.delta",   "payload": { "delta": "walk Takeshita-dori, finish at Shibuya Sky for sunset.\n\n" } },
+    { "delay_ms": 70,   "event": "assistant.delta",   "payload": { "delta": "**Day 2 — Asakusa & Sumida.** " } },
+    { "delay_ms": 70,   "event": "assistant.delta",   "payload": { "delta": "Senso-ji at opening, Nakamise snacks, " } },
+    { "delay_ms": 70,   "event": "assistant.delta",   "payload": { "delta": "river boat to Hamarikyu Gardens, dinner in Shimbashi.\n\n" } },
+    { "delay_ms": 70,   "event": "assistant.delta",   "payload": { "delta": "**Day 3 — Toyosu & Ginza.** " } },
+    { "delay_ms": 70,   "event": "assistant.delta",   "payload": { "delta": "teamLab Planets in the morning, sushi at Toyosu, " } },
+    { "delay_ms": 70,   "event": "assistant.delta",   "payload": { "delta": "Ginza in the afternoon for shopping and coffee." } },
+    { "delay_ms": 100,  "event": "assistant.message", "payload": { "role": "assistant", "content": "Here's a 3-day plan you can actually follow.\n\n**Day 1 — Shibuya & Harajuku.** Land, drop bags, grab tonkatsu for lunch, walk Takeshita-dori, finish at Shibuya Sky for sunset.\n\n**Day 2 — Asakusa & Sumida.** Senso-ji at opening, Nakamise snacks, river boat to Hamarikyu Gardens, dinner in Shimbashi.\n\n**Day 3 — Toyosu & Ginza.** teamLab Planets in the morning, sushi at Toyosu, Ginza in the afternoon for shopping and coffee." } },
+
+    { "delay_ms": 400,  "event": "content.blocks",    "payload": {
+        "blocks": [
+          { "type": "collapsible", "title": "Day-by-day breakdown", "expanded": false, "body": "Day 1: Shibuya 09:00, Harajuku 13:00, Shibuya Sky 17:30.\nDay 2: Senso-ji 08:30, Hamarikyu 13:00, Shimbashi dinner 19:00.\nDay 3: teamLab 09:00, Toyosu sushi 12:30, Ginza 15:00." },
+          { "type": "code", "language": "markdown", "code": "# Tokyo packing list\n- Pocket wifi or eSIM\n- Comfortable walking shoes\n- Small umbrella (sudden rain)\n- Cash (¥10,000) — many places still card-shy\n- IC card (Suica / Pasmo)" },
+          { "type": "divider" }
+        ]
+      }
+    },
+    { "delay_ms": 300,  "event": "sub_agent.end",     "payload": { "sub_agent_key": "sai_writer", "agent_name": "Itinerary Writer" } },
+
+    { "delay_ms": 700,  "event": "assistant.delta",   "payload": { "delta": "That's the plan." } },
+    { "delay_ms": 70,   "event": "assistant.delta",   "payload": { "delta": " Want me to lock in the hotel and add" } },
+    { "delay_ms": 70,   "event": "assistant.delta",   "payload": { "delta": " these to your calendar?" } },
+    { "delay_ms": 100,  "event": "assistant.message", "payload": { "role": "assistant", "content": "That's the plan. Want me to lock in the hotel and add these to your calendar?" } },
+
+    { "delay_ms": 300,  "event": "content.blocks",    "payload": {
+        "blocks": [
+          { "type": "callout", "style": "success", "title": "Trip ready",
+            "body": "3 days · 1 hotel · 5 attractions · packing list included." },
+          { "type": "actionButtons", "buttons": [
+              { "type": "callback", "label": "Confirm everything", "callbackId": "confirm_trip",      "style": "primary"  },
+              { "type": "callback", "label": "Tweak the itinerary", "callbackId": "edit_trip",        "style": "secondary"},
+              { "type": "callback", "label": "Start over",         "callbackId": "restart_planning", "style": "destructive"}
+          ]}
+        ]
+      }
+    },
+
+    { "delay_ms": 200,  "event": "run.succeeded",     "payload": {} }
+  ]
+}

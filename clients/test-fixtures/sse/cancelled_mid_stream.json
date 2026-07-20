@@ -1,0 +1,15 @@
+{
+  "name": "cancelled_mid_stream",
+  "description": "Long stream that is terminated by run.cancelled. The client should stop the typewriter and mark the bubble done without an error.",
+  "run_id": "test-run-cancel-001",
+  "conversation_id": "test-conv-cancel-001",
+  "events": [
+    { "delay_ms":  20, "event": "assistant.delta", "payload": { "delta": "Sure," } },
+    { "delay_ms":  40, "event": "assistant.delta", "payload": { "delta": " here is a long" } },
+    { "delay_ms":  40, "event": "assistant.delta", "payload": { "delta": " explanation that" } },
+    { "delay_ms":  40, "event": "assistant.delta", "payload": { "delta": " will get cancel" } },
+    { "delay_ms":  40, "event": "assistant.delta", "payload": { "delta": "led before it" } },
+    { "delay_ms":  40, "event": "assistant.delta", "payload": { "delta": " finishes" } },
+    { "delay_ms":  40, "event": "run.cancelled",   "payload": { "reason": "user_cancelled" } }
+  ]
+}

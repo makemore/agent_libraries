@@ -1,0 +1,13 @@
+{
+  "name": "duplicate_replayed_event",
+  "description": "A replayed event with the same run_id and seq should be deduped by client reducers.",
+  "run_id": "test-run-duplicate-001",
+  "conversation_id": "test-conv-duplicate-001",
+  "events": [
+    { "delay_ms": 0, "event": "assistant.delta", "payload": { "delta": "Hello" } },
+    { "delay_ms": 0, "event": "assistant.delta", "payload": { "delta": "Hello" }, "seq_override": 0 },
+    { "delay_ms": 0, "event": "assistant.delta", "payload": { "delta": " world" } },
+    { "delay_ms": 0, "event": "assistant.message", "payload": { "role": "assistant", "content": "Hello world" } },
+    { "delay_ms": 0, "event": "run.succeeded", "payload": {} }
+  ]
+}

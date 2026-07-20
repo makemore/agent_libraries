@@ -1,0 +1,59 @@
+{
+  "_comment": "Cross-platform ephemeral-mode parity contract. Consumed IDENTICALLY by iOS (agent-ios/Tests/.../EphemeralContractParityTests.swift) and Android (agent-android/.../EphemeralContractParityTest.kt). It is the single oracle that keeps the two clients consistent: editing it forces both platforms to update together. See agent/docs/ephemeral-security-validation-plan.md (Layer B).",
+  "scenarios": [
+    {
+      "name": "history_resend_grows_each_turn",
+      "description": "Across 3 turns in one ephemeral conversation, the client must (a) send ephemeral:true every turn, (b) re-send the full local history each turn (2N-1 messages on turn N), (c) send NO conversationId on turn 1, then reuse the server-returned id, and (d) never fetch history from the server.",
+      "agentKey": "test-agent",
+      "fixture": "simple_final_message",
+      "assistantReply": "Hello!",
+      "serverConversationId": "test-conv-final-001",
+      "privateOnly": false,
+      "turns": ["first message", "second message", "third message"],
+      "expect": {
+        "everyRequestEphemeralTrue": true,
+        "messageCountPerTurn": [1, 3, 5],
+        "expectedMessagesPerTurn": [
+          [
+            { "role": "user", "content": "first message" }
+          ],
+          [
+            { "role": "user", "content": "first message" },
+            { "role": "assistant", "content": "Hello!" },
+            { "role": "user", "content": "second message" }
+          ],
+          [
+            { "role": "user", "content": "first message" },
+            { "role": "assistant", "content": "Hello!" },
+            { "role": "user", "content": "second message" },
+            { "role": "assistant", "content": "Hello!" },
+            { "role": "user", "content": "third message" }
+          ]
+        ],
+        "conversationIdSentPerTurn": [null, "test-conv-final-001", "test-conv-final-001"],
+        "forbiddenPathSubstring": "/conversations"
+      }
+    },
+    {
+      "name": "private_only_flag_forwarded",
+      "description": "When the consuming app marks the client private_only, every run carries private_only:true so the server can fail-close egress to the configured private (Modal) endpoint. Server-side enforcement is covered by test_sovereignty.py; this only asserts the clients forward the flag identically.",
+      "agentKey": "test-agent",
+      "fixture": "simple_final_message",
+      "assistantReply": "Hello!",
+      "serverConversationId": "test-conv-final-001",
+      "privateOnly": true,
+      "turns": ["hi"],
+      "expect": {
+        "everyRequestEphemeralTrue": true,
+        "messageCountPerTurn": [1],
+        "expectedMessagesPerTurn": [
+          [
+            { "role": "user", "content": "hi" }
+          ]
+        ],
+        "conversationIdSentPerTurn": [null],
+        "forbiddenPathSubstring": "/conversations"
+      }
+    }
+  ]
+}

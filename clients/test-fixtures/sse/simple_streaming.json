@@ -1,0 +1,14 @@
+{
+  "name": "simple_streaming",
+  "description": "Plain text streaming reply that finishes with assistant.message + run.succeeded.",
+  "run_id": "test-run-simple-001",
+  "conversation_id": "test-conv-simple-001",
+  "events": [
+    { "delay_ms": 20, "event": "assistant.delta",   "payload": { "delta": "Hello" } },
+    { "delay_ms": 30, "event": "assistant.delta",   "payload": { "delta": " there" } },
+    { "delay_ms": 30, "event": "assistant.delta",   "payload": { "delta": "! How can I" } },
+    { "delay_ms": 30, "event": "assistant.delta",   "payload": { "delta": " help you today?" } },
+    { "delay_ms": 30, "event": "assistant.message", "payload": { "role": "assistant", "content": "Hello there! How can I help you today?" } },
+    { "delay_ms":  0, "event": "run.succeeded",     "payload": {} }
+  ]
+}
