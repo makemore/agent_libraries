@@ -14,7 +14,6 @@ REPOS=(
   "https://github.com/makemore/agent-frontend.git                 clients/agent-frontend"
   "https://github.com/makemore/agent-android.git                  clients/agent-android"
   "https://github.com/makemore/agent-unity.git                    clients/agent-unity"
-  "https://github.com/makemore/agent-client.git                   clients/agent-client"
   "https://github.com/makemore/agent-ios.git                      clients/agent-ios"
   # agent/ — parent must exist first
   "https://github.com/makemore/agent-runtime-core.git             agent/agent_runtime_core"
@@ -23,12 +22,14 @@ REPOS=(
   "https://github.com/makemore/django_agent_studio.git            agent/django_agent_studio"
 )
 
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$REPO_ROOT"
 mkdir -p clients agent
 
 for entry in "${REPOS[@]}"; do
   url="${entry%% *}"
   dir="${entry##* }"
-  if [ -d "$dir/.git" ]; then
+  if [ -e "$dir/.git" ]; then
     echo "skip  $dir  (already cloned)"
   else
     echo "clone $url  ->  $dir"

@@ -1,6 +1,6 @@
 """Stub Server-Sent-Events backend for iOS/Android streaming UI tests.
 
-Replays the JSON fixtures in ``clients/test-fixtures/sse/`` over the same
+Replays the JSON fixtures in ``test-harness/fixtures/sse/`` over the same
 URL shape that ``django_agent_runtime`` exposes, so that the example apps
 can talk to it without any modification.
 
@@ -22,7 +22,7 @@ from flask import Flask, Response, jsonify, request, stream_with_context
 
 
 HERE = Path(__file__).resolve().parent
-FIXTURES_DIR = (HERE.parent / "test-fixtures" / "sse").resolve()
+FIXTURES_DIR = (HERE.parent / "fixtures" / "sse").resolve()
 DEFAULT_FIXTURE = "simple_streaming"
 
 

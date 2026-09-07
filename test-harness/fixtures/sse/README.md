@@ -4,9 +4,9 @@ Recorded sequences of Server-Sent Events that the agent backend
 (`django_agent_runtime`) emits during a run. Each fixture is a single
 JSON file consumed by:
 
-- the Python stub server (`clients/test-stub-server/`) — replays the
+- the Python stub server (`test-harness/stub-server/`) — replays the
   fixture with timing for instrumented UI tests;
-- the iOS Level-A tests (`AgentFrontendTests`) — fed through a
+- the iOS Level-A tests (`AgentClientTests`) — fed through a
   `URLProtocol` mock so the real `SSEClient` and `ChatViewModel` are
   exercised end-to-end without a network;
 - the Android Level-A tests (`agentfrontend` JVM `test` source set) —
@@ -31,8 +31,8 @@ JSON file consumed by:
 
 `delay_ms` is the wait *before* sending the event, used by the stub
 server to mimic real provider pacing. The Level-A mock transports
-emit all events immediately (so tests stay deterministic) and rely on
-the ChatViewModel's own drain timer to be advanced explicitly.
+emit all events immediately so tests stay deterministic; they assert the
+client's settled state rather than wall-clock playback timing.
 
 ### Wire format produced
 

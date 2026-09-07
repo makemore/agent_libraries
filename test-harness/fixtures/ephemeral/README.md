@@ -4,8 +4,8 @@
 mobile clients drive the same scenarios from it and assert the same outcomes,
 so the two platforms cannot silently diverge on the privacy-critical path:
 
-- iOS: `agent-ios/Tests/AgentClientTests/EphemeralContractParityTests.swift`
-- Android: `agent-android/src/test/java/com/makemore/agentfrontend/streaming/EphemeralContractParityTest.kt`
+- iOS: `clients/agent-ios/Tests/AgentClientTests/EphemeralContractParityTests.swift`
+- Android: `clients/agent-android/src/test/java/com/makemore/agentfrontend/streaming/EphemeralContractParityTest.kt`
 
 Each scenario pins, per turn:
 
@@ -21,4 +21,4 @@ fixtures, so request *and* response bytes are identical across platforms.
 
 **Editing this file is a cross-platform change.** Both the iOS and Android
 parity tests load it; a CI change here must keep both suites green. See
-`agent/docs/ephemeral-security-validation-plan.md` (Layer B).
+`plans/ephemeral-security-validation-plan.md` (Layer B).

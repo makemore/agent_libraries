@@ -1,0 +1,6 @@
+[submodule "docs"]
+	path = docs
+	url = https://github.com/makemore/agent-docs.git
+[submodule "clients/agent-client"]
+	path = clients/agent-client
+	url = https://github.com/makemore/agent-client.git

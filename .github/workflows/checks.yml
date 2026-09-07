@@ -1,0 +1,25 @@
+name: Test harness
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  stub-server:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    strategy:
+      matrix:
+        python: ['3.11', '3.13']
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+      - run: python -m pip install -r test-harness/stub-server/requirements.txt
+      - run: make test-harness PYTHON=python
+      - run: bash -n scripts/checkout.sh && bash -n clients/scripts/start_stub_server.sh

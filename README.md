@@ -5,46 +5,60 @@ repositories: Python/Django backend, mobile + web clients, Studio UI,
 the chisel tool-builder framework, the parrot registry, and the docs
 site.
 
-## Known follow-ups (post-reorg)
+## Package ownership
 
-After the folder reorganisation, one client-side helper script still
-references the old stub-server path:
+The active TypeScript client lives in
+[`clients/agent-frontend/packages/agent-client`](clients/agent-frontend/packages/agent-client/)
+and is published as `@makemore/agent-client`. The standalone
+`clients/agent-client` checkout is legacy; new checkouts do not clone it.
+Existing legacy checkouts are left untouched.
 
-- `clients/scripts/start_stub_server.sh` — line 14 sets
-  `STUB_DIR="$REPO_ROOT/clients/test-stub-server"`. That folder has
-  moved to `test-harness/stub-server/` (and the previously-committed
-  `.venv` inside it was purged, so the script's venv-detection branch
-  will fall through to the system Python).
-
-To finish the move, edit the file inside the `clients` sub-repo:
-
-```bash
-# 1. Update the path (and drop the venv block if you no longer want it):
-cd clients
-$EDITOR scripts/start_stub_server.sh
-#    change:  STUB_DIR="$REPO_ROOT/clients/test-stub-server"
-#    to:      STUB_DIR="$REPO_ROOT/test-harness/stub-server"
-
-# 2. Sanity-check it resolves from the clients/ root:
-ls ../test-harness/stub-server/server.py
-
-# 3. Run it and commit inside the clients sub-repo:
-./scripts/start_stub_server.sh        # should boot the stub on :$STUB_PORT
-git -C . add scripts/start_stub_server.sh
-git -C . commit -m "Point start_stub_server.sh at the moved test-harness path"
-```
+`agent/agent_studio` is the Django host project;
+`agent/django_agent_studio` is the reusable Studio application.
+These are different roles, not interchangeable package locations.
 
 ## One-shot checkout
 
 ```bash
 git clone https://github.com/makemore/agent_libraries.git
 cd agent_libraries
-make checkout    # clones every sub-repo into the right relative path
+make checkout    # clones current sub-repos into the right relative paths
 make install     # editable-install the Python packages
 ```
 
 `make checkout` is idempotent — re-running it skips any sub-repo that's
-already present.
+already present. Access to private repositories is required. It does not
+pull existing checkouts or guarantee a tested combination of versions.
+
+## Tests
+
+Shared fixtures live in `test-harness/fixtures/{sse,ephemeral}`. Client tests
+prefer this location in a workspace and retain package-local fixture fallbacks
+for standalone checkouts.
+
+Install the already-declared test dependencies in an isolated environment:
+
+```bash
+python3 -m venv test-harness/stub-server/.venv
+test-harness/stub-server/.venv/bin/python -m pip install -r test-harness/stub-server/requirements.txt
+cd clients/agent-frontend && npm ci && cd ../..
+make test PYTHON=test-harness/stub-server/.venv/bin/python
+```
+
+Additional targets:
+
+- `make test-ios`: headless Swift client tests on macOS, using a temporary
+  package without downloading WhisperKit. This is not an iOS simulator/UI test.
+- `make test-android`: both Android JVM test modules; requires a configured
+  JDK/Android SDK and cached Gradle dependencies (`--offline`).
+- `make test-harness` / `make test-web`: run either portion independently.
+- `make clean`: preview ignored files in exact repository directories;
+  **does not delete anything**.
+
+The meta-repo CI checks the stub server. The frontend repository separately
+checks its TypeScript client against these public fixtures, and the docs
+repository builds with MkDocs strict mode. These are focused checks, not a
+full backend/device compatibility matrix.
 
 ## Layout
 
@@ -81,7 +95,7 @@ shared collateral.
 | `clients/agent-frontend/` | https://github.com/makemore/agent-frontend |
 | `clients/agent-android/` | https://github.com/makemore/agent-android |
 | `clients/agent-unity/` | https://github.com/makemore/agent-unity |
-| `clients/agent-client/` | https://github.com/makemore/agent-client |
+| `clients/agent-client/` (legacy; not cloned by default) | https://github.com/makemore/agent-client |
 | `clients/agent-ios/` | https://github.com/makemore/agent-ios |
 
 ## Read the docs
@@ -90,10 +104,10 @@ The canonical guides live in **[`docs/`](docs/)**:
 
 | Guide | Audience |
 |---|---|
-| [Product Overview](docs/overview/product-overview.md) | CTOs, technical leads |
-| [Server Install](docs/setup/server.md) | Backend / DevOps |
-| [Client Install](docs/setup/client.md) | Mobile developers |
-| [Managed MCP Setup](docs/setup/managed-mcp.md) | Backend developers |
-| [chisel Setup](docs/setup/chisel.md) | Tool authors |
-| [Package Registry](docs/reference/package-registry.md) | Maintainers |
-| [For AI agents](docs/contributing/agents.md) | AI coding agents |
+| [Product Overview](docs/docs/overview/product-overview.md) | CTOs, technical leads |
+| [Server Install](docs/docs/setup/server.md) | Backend / DevOps |
+| [Client Install](docs/docs/setup/client.md) | Mobile developers |
+| [Managed MCP Setup](docs/docs/setup/managed-mcp.md) | Backend developers |
+| [chisel Setup](docs/docs/setup/chisel.md) | Tool authors |
+| [Package Registry](docs/docs/reference/package-registry.md) | Maintainers |
+| [For AI agents](docs/docs/contributing/agents.md) | AI coding agents |

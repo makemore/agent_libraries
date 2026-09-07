@@ -2,7 +2,7 @@
 
 A small Flask server that pretends to be `django_agent_runtime` for the
 purpose of mobile-client UI tests. It replays the JSON fixtures in
-`clients/test-fixtures/sse/` as real Server-Sent Event streams, with
+`test-harness/fixtures/sse/` as real Server-Sent Event streams, with
 configurable per-event delays, so the iOS/Android example apps can be
 exercised end-to-end against deterministic input.
 
@@ -37,13 +37,22 @@ fixture.
 ### Running locally
 
 ```
-cd clients/test-stub-server
+cd test-harness/stub-server
 python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 python server.py --port 8001
 ```
 
 Then point a client at `http://localhost:8001`.
+
+From the meta-repo root, `bash clients/scripts/start_stub_server.sh` uses
+the stub's `.venv` when present and defaults to port 8765. Override the
+interpreter with `PYTHON` or a virtualenv with `AGENT_VENV`; set `STUB_PORT`
+to change the port. The launcher never installs dependencies automatically.
+Extra arguments such as `--no-delay` are forwarded to the server.
+
+Run offline regression tests with `make test-harness` from the meta-repo
+root, setting `PYTHON` to the interpreter with these requirements installed.
 
 To run with no per-event delay (tests):
 
