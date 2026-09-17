@@ -17,6 +17,31 @@ Existing legacy checkouts are left untouched.
 `agent/django_agent_studio` is the reusable Studio application.
 These are different roles, not interchangeable package locations.
 
+## Development defaults
+
+Contributors and coding agents must follow [the setup/defaults policy](AGENTS.md):
+general demos, seeds and fixtures inherit supported defaults, use normal write
+paths, and keep compatibility overrides explicit and locally justified. Persistent
+demo setup must have a reproducible, tested routine rather than exist only in
+terminal history. Setup permission does not authorize changing product semantics.
+
+## Jimmy (local standalone project)
+
+[`jimmy/`](jimmy/README.md) is an independent local Python 3.12 coding-agent
+repository, with a Textual interface, one-shot CLI, and ACP stdio integration.
+It uses the patched core directly; it does not install Django or change backend
+or mobile workflows. Its isolated environment and lockfile are managed with uv.
+
+From that directory, `uv run --locked jimmy demo --plain` runs a labelled offline
+simulation without credentials or workspace writes. Real runs require an explicit
+model via `--model` or `JIMMY_MODEL` and an existing OpenAI credential source.
+Writes and commands require exact allow-once approval; JSON/noninteractive runs
+deny them by default. Approved commands are **not sandboxed**.
+
+Jimmy has no configured remote and is not cloned by `make checkout`. Publication
+is blocked on a tested core release, core-commit provenance, licensing decisions,
+and manual editor/live-provider acceptance. See its README for current limits.
+
 ## One-shot checkout
 
 ```bash
@@ -29,6 +54,37 @@ make install     # editable-install the Python packages
 `make checkout` is idempotent — re-running it skips any sub-repo that's
 already present. Access to private repositories is required. It does not
 pull existing checkouts or guarantee a tested combination of versions.
+
+## Live local Studio development
+
+After installing the declared npm dependencies in `clients/agent-frontend` and
+`agent/django_agent_studio/frontend`, run **`make watch-frontends`** at this root.
+It starts only asset watchers; it does not start workers, consume queued jobs,
+migrate data or deploy anything. Stop it with Ctrl-C.
+
+- The widget bundles `clients/agent-frontend/packages/agent-client/src` directly.
+  No stale client `dist` build or legacy `clients/agent-client` is used.
+- Widget JS, its source map, CSS and markdown plugin are synchronized to
+  `agent/django_agent_studio/static/agent-frontend` after successful builds.
+  CSS/plugin sources are currently maintained in the widget's `dist` directory.
+- Studio's Vite watcher builds into its own Django static directory.
+- **Refresh the page after a build.** This is build-and-serve watching, not browser
+  HMR. Django development static finders serve these files; no `collectstatic`
+  is needed. A production host serves deployed artifacts, not these checkouts.
+
+The root `Procfile` (or `agent/agent_studio/Procfile.dev` from that directory)
+also describes reload-enabled web/worker processes, plus both watchers. Use it
+with your chosen Procfile supervisor only after installing the host's declared
+requirements into the host's own `agent/agent_studio/.venv`, with the library
+editable installs (`pip install -e`) pointing at the checkouts here. The root
+`.venv` is for library tests only; it does not carry the host's dependencies.
+Do not start it alongside another server on port 8001 or an existing worker.
+**Starting the worker can execute queued jobs.** Changing these files does not
+restart an already-running process launched with `--noreload`.
+
+Python packages do not compile into the web bundle: web and worker processes
+must import the editable checkouts and run their reloaders (or be restarted).
+Do not infer live Python reload merely from an editable installation.
 
 ## Tests
 
@@ -52,6 +108,8 @@ Additional targets:
 - `make test-android`: both Android JVM test modules; requires a configured
   JDK/Android SDK and cached Gradle dependencies (`--offline`).
 - `make test-harness` / `make test-web`: run either portion independently.
+- `make test-jimmy`: run Jimmy's isolated offline pytest suite using its lockfile;
+  first run `uv sync --locked` inside the local Jimmy checkout.
 - `make clean`: preview ignored files in exact repository directories;
   **does not delete anything**.
 
@@ -72,6 +130,7 @@ agent_libraries/
 ├── docs/                    ← mkdocs source (own repo)
 ├── agent/                   ← backend Python packages (own repo per package)
 ├── clients/                 ← mobile, web, TS, Unity clients (own repo each)
+├── jimmy/                   ← local standalone coding agent (own repo; no remote)
 ├── chisel/, django_chisel/  ← tool-builder framework (own repo each)
 └── parrot/                  ← agent version-control registry (own repo)
 ```

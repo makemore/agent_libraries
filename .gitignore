@@ -36,3 +36,8 @@ clients/agent-ios/
 clients/agent-unity/
 django_chisel/
 parrot/
+
+# Jimmy is an independent local repository (no remote configured).
+/jimmy/
+/warp/
+
