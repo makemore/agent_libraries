@@ -1,0 +1,1 @@
+"""ACE Django adapter tests."""

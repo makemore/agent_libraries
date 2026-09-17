@@ -1,0 +1,21 @@
+# Byte-compiled / optimised
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Egg / build artefacts
+*.egg-info/
+*.egg
+dist/
+build/
+
+# Coverage
+.coverage
+htmlcov/
+
+# Pytest
+.pytest_cache/
+
+# OS junk
+.DS_Store
+Thumbs.db

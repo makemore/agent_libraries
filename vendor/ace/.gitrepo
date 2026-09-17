@@ -1,0 +1,12 @@
+; DO NOT EDIT (unless you know what you are doing)
+;
+; This subdirectory is a git "subrepo", and this file is maintained by the
+; git-subrepo command. See https://github.com/ingydotnet/git-subrepo#readme
+;
+[subrepo]
+	remote = https://github.com/makemore/ace
+	branch = main
+	commit = 7c5fe361048cf4d2c1c1c5d2fff65c37fb289fa3
+	parent = ad0e0550e72216adfb2ffaa92e60bf567f44f5c9
+	method = merge
+	cmdver = 0.4.9

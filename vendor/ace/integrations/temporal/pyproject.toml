@@ -1,0 +1,26 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ace-temporal"
+version = "1.0.0"
+description = "Experimental Temporal execution backend adapter for ACE"
+requires-python = ">=3.11"
+license = {text = "Proprietary"}
+dependencies = [
+    "ace-core==1.*",
+    "temporalio>=1.5",
+]
+
+[project.optional-dependencies]
+test = ["pytest>=8.0"]
+
+[tool.setuptools.packages.find]
+include = ["ace_temporal*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
