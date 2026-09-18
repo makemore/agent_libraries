@@ -5,7 +5,7 @@ The libraries default to secure behaviour, but a few controls live in *your* app
 target and must be verified before a hardened (e.g. UK MoD) release. Items marked
 ✅ are enforced by the library; items marked ⬜ are **your** responsibility.
 
-> See also `agent/docs/ephemeral-security-validation-plan.md` for the full
+> See also `plans/ephemeral-security-validation-plan.md` for the full
 > threat model and the server-side controls.
 
 ## Transport (network MITM / cleartext)

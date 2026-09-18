@@ -8,7 +8,7 @@ Later features below remain proposals, not shipped functionality.
 ## What exists
 
 - Runtime Django management commands in
-  `agent/django_agent_runtime/management/commands/`: workers, ASGI development
+  `packages/python/django_agent_runtime/management/commands/`: workers, ASGI development
   server, agent-system import/export, knowledge indexing and maintenance. These
   require a configured server environment; they are not remote HTTP clients.
 - Studio's `run_eval_suite` management command is likewise host-local.
@@ -17,8 +17,8 @@ Later features below remain proposals, not shipped functionality.
 - `clients/agent-frontend/packages/agent-client` supplies a TypeScript chat client,
   not a Studio administration executable. Warp's CLI targets a different product.
 - The broader checkout inventory confirmed **Warp's Go remote-admin CLI** at
-  `warp/cli`, **Parrot's Python registry CLI** at `parrot/parrot-cli`, and **Jimmy's
-  local coding-agent CLI** at `jimmy`. None supplies general runtime/Studio REST
+  `products/warp/cli`, **Parrot's Python registry CLI** at `products/parrot/parrot-cli`, and **Jimmy's
+  local coding-agent CLI** at `products/jimmy`. None supplies general runtime/Studio REST
   administration. Their product-specific APIs/auth were not copied into this CLI.
 - No existing suitable Studio/runtime console client was found; this CLI is new.
 

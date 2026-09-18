@@ -5,9 +5,9 @@ an assertion of end-to-end production readiness. No remote machines enrolled.
 
 **2026-09-15 update:** the sections below retain the original audit snapshot.
 Remote ACP handoff has since been implemented; see
-[the rollout record](../agent/agent_runtime_core/deploy/ROLLOUT-2026-09-15.md).
+[the rollout record](../packages/python/agent_runtime_core/deploy/ROLLOUT-2026-09-15.md).
 The confirmed workspace direction is now the
-[Studio-owned multi-location contract](../agent/django_agent_studio/CONTROL_PLANE.md):
+[Studio-owned multi-location contract](../packages/python/django_agent_studio/CONTROL_PLANE.md):
 one server-owned master list of explicitly added virtual pointers, shared by web,
 desktop and future mobile clients. No proxy-owned master catalog, automatic root
 scan or project-imposed filesystem isolation. The new contract supersedes earlier
@@ -30,13 +30,13 @@ authorization boundary. Do not put remote-machine credentials in the browser.
 | Layer | Existing implementation | Boundary / remaining integration |
 | --- | --- | --- |
 | Web client and chat | `clients/agent-frontend/packages/agent-client/src`, widget `src` | Existing runtime HTTP/SSE, history, cancellation, attachments and event handling. Not a native browser ACP client. Extend reusable packages, not a Studio-only chat fork. |
-| Outbound ACP | `agent/agent_runtime_core/agent_runtime_core/acp/remote.py` | `RemoteACPRuntime`, WS and HTTP transport factories, event mapping, session checkpoint/load, cancel and deny-by-default permission callback. Current prompt forwarding is text-only and advertises no filesystem/terminal client capabilities. |
-| Database agent adapter | `agent/django_agent_runtime/runtime/remote_acp.py` | Active-version `acp_*` configuration builds the existing remote runtime. Add safe connection administration around this, rather than another execution engine. |
-| Inbound ACP | `agent/django_agent_runtime/acp_server/{asgi,agent}.py` | Authenticated HTTP/WS mount, conversation sessions and event translation. Useful to expose our runtime to external ACP clients; not required merely for outbound federation. |
-| Editor relay | `agent/agent_runtime_core/agent_runtime_core/acp/bridge.py` | **Client-side** stdio → remote WebSocket relay. Does not publish a laptop's local stdio agent to the cloud. |
-| Local coding agent | `jimmy/src/jimmy/{acp,workspace,security}.py` | ACP stdio and permission/workspace boundaries. Its client-buffer workspace is proposal-only. A remote endpoint/connector is needed for cloud access; do not assume the cloud has its local files. |
-| Remote execution | `agent/agent_runtime_core/agent_runtime_core/execution/{provider,conduit_provider,conduit_client,tools}.py` | Session commands/output, sync/async command execution, heartbeat and file read/write primitives. Existing HTTP polling/capture is not a complete browser terminal transport or resumable transfer service. |
-| Session persistence | `agent/django_agent_runtime/conduit/persistence.py`, `models/concrete.py` | Existing `ActiveSession` supports run-associated remote session tracking. A user-facing workspace session can outlive a run; extend the owning layer after defining that lifecycle. |
+| Outbound ACP | `packages/python/agent_runtime_core/agent_runtime_core/acp/remote.py` | `RemoteACPRuntime`, WS and HTTP transport factories, event mapping, session checkpoint/load, cancel and deny-by-default permission callback. Current prompt forwarding is text-only and advertises no filesystem/terminal client capabilities. |
+| Database agent adapter | `packages/python/django_agent_runtime/runtime/remote_acp.py` | Active-version `acp_*` configuration builds the existing remote runtime. Add safe connection administration around this, rather than another execution engine. |
+| Inbound ACP | `packages/python/django_agent_runtime/acp_server/{asgi,agent}.py` | Authenticated HTTP/WS mount, conversation sessions and event translation. Useful to expose our runtime to external ACP clients; not required merely for outbound federation. |
+| Editor relay | `packages/python/agent_runtime_core/agent_runtime_core/acp/bridge.py` | **Client-side** stdio → remote WebSocket relay. Does not publish a laptop's local stdio agent to the cloud. |
+| Local coding agent | `products/jimmy/src/jimmy/{acp,workspace,security}.py` | ACP stdio and permission/workspace boundaries. Its client-buffer workspace is proposal-only. A remote endpoint/connector is needed for cloud access; do not assume the cloud has its local files. |
+| Remote execution | `packages/python/agent_runtime_core/agent_runtime_core/execution/{provider,conduit_provider,conduit_client,tools}.py` | Session commands/output, sync/async command execution, heartbeat and file read/write primitives. Existing HTTP polling/capture is not a complete browser terminal transport or resumable transfer service. |
+| Session persistence | `packages/python/django_agent_runtime/conduit/persistence.py`, `models/concrete.py` | Existing `ActiveSession` supports run-associated remote session tracking. A user-facing workspace session can outlive a run; extend the owning layer after defining that lifecycle. |
 | Tools and distribution | Core/runtime MCP, Chisel/Django Chisel, Parrot | Reuse tool integration and versioned artifact distribution. MCP tools are not agent sessions; Parrot artifacts are not a live machine-presence registry. |
 
 ## Ownership rules

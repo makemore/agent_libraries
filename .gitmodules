@@ -1,6 +1,69 @@
 [submodule "docs"]
 	path = docs
 	url = https://github.com/makemore/agent-docs.git
-[submodule "clients/agent-client"]
-	path = clients/agent-client
+[submodule "packages/python/agent_runtime_core"]
+	path = packages/python/agent_runtime_core
+	url = https://github.com/makemore/agent-runtime-core.git
+[submodule "packages/python/django_agent_runtime"]
+	path = packages/python/django_agent_runtime
+	url = https://github.com/makemore/django-agent-runtime.git
+[submodule "packages/python/django_agent_studio"]
+	path = packages/python/django_agent_studio
+	url = https://github.com/makemore/django_agent_studio.git
+[submodule "packages/python/django_agent_sdlc"]
+	path = packages/python/django_agent_sdlc
+	url = https://github.com/makemore/django-agent-sdlc.git
+[submodule "packages/python/chisel"]
+	path = packages/python/chisel
+	url = https://github.com/makemore/chisel.git
+[submodule "packages/python/django_chisel"]
+	path = packages/python/django_chisel
+	url = https://github.com/makemore/django_chisel.git
+[submodule "clients/agent-frontend"]
+	path = clients/agent-frontend
+	url = https://github.com/makemore/agent-frontend.git
+[submodule "clients/agent-cli"]
+	path = clients/agent-cli
+	url = https://github.com/makemore/agent-cli.git
+[submodule "clients/agent-android"]
+	path = clients/agent-android
+	url = https://github.com/makemore/agent-android.git
+[submodule "clients/agent-ios"]
+	path = clients/agent-ios
+	url = https://github.com/makemore/agent-ios.git
+[submodule "clients/agent-unity"]
+	path = clients/agent-unity
+	url = https://github.com/makemore/agent-unity.git
+[submodule "products/studio"]
+	path = products/studio
+	url = https://github.com/makemore/agent_studio.git
+[submodule "products/studio-desktop"]
+	path = products/studio-desktop
+	url = https://github.com/makemore/studio-desktop.git
+[submodule "products/warp"]
+	path = products/warp
+	url = https://github.com/makemore/warp.git
+[submodule "products/jimmy"]
+	path = products/jimmy
+	url = https://github.com/makemore/jimmy.git
+[submodule "products/parrot"]
+	path = products/parrot
+	url = https://github.com/makemore/parrot.git
+[submodule "products/conduit"]
+	path = products/conduit
+	url = https://github.com/makemore/conduit.git
+[submodule "products/manyhands"]
+	path = products/manyhands
+	url = https://github.com/makemore/manyhands.git
+[submodule "products/shipwright"]
+	path = products/shipwright
+	url = https://github.com/makemore/shipwright.git
+[submodule "infrastructure/machine"]
+	path = infrastructure/machine
+	url = https://github.com/makemore/machine.git
+[submodule "templates/fullstack-cookiecutter"]
+	path = templates/fullstack-cookiecutter
+	url = https://github.com/makemore/fullstack-cookiecutter.git
+[submodule "archive/agent-client"]
+	path = archive/agent-client
 	url = https://github.com/makemore/agent-client.git

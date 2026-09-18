@@ -6,7 +6,7 @@ plus every S'Ai definition change that must ship to prod.
 
 ## 1. Goal
 
-1. A **generic** eval product in `agent/django_agent_studio` that can:
+1. A **generic** eval product in `packages/python/django_agent_studio` that can:
    - run 200+ test cases against an agent **or** a multi-agent system;
    - drive multi-turn conversations where the "user" side is an LLM (LLM-as-user);
    - evaluate outcomes (LLM-as-judge + deterministic assertions);
@@ -34,7 +34,7 @@ plus every S'Ai definition change that must ship to prod.
 - **Studio API** (`django_agent_studio/api/urls.py`): agent CRUD, `versions/`,
   `revisions/`, `save/`, `publish/`, `spec/`, systems. Studio `models/` currently
   holds only `permissions.py`, so the eval app adds new models here.
-- **Host project**: `agent/agent_studio` (Django project, `manage.py`, sqlite dev
+- **Host project**: `products/studio` (Django project, `manage.py`, sqlite dev
   db, `requirements.txt`). Management commands live under each app's
   `management/commands`.
 - **iOS intro** (`resilient/ios/.../AppViewModel.swift`): `replayIntro()` /
@@ -45,7 +45,7 @@ plus every S'Ai definition change that must ship to prod.
 
 ## 3. Proposed design — Studio eval app
 
-New code under `agent/django_agent_studio` (namespaced, generic — not S'Ai-specific):
+New code under `packages/python/django_agent_studio` (namespaced, generic — not S'Ai-specific):
 
 - **Models** (`models/evals.py`):
   - `EvalSuite` — name, target (agent_key **or** system), default judge model.

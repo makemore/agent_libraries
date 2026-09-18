@@ -5,7 +5,7 @@ set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 
-pip install -e "$REPO_ROOT/agent/agent_runtime_core"
-pip install -e "$REPO_ROOT/agent/django_agent_runtime"
-pip install -e "$REPO_ROOT/parrot/parrot-django"
-pip install -e "$REPO_ROOT/agent/django_agent_studio"
+pip install -e "$REPO_ROOT/packages/python/agent_runtime_core"
+pip install -e "$REPO_ROOT/packages/python/django_agent_runtime"
+pip install -e "$REPO_ROOT/products/parrot/parrot-django"
+pip install -e "$REPO_ROOT/packages/python/django_agent_studio"

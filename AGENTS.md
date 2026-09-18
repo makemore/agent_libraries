@@ -39,7 +39,7 @@ guidance also applies. This policy is for human contributors and coding agents.
 - Add and run default-path tests as well as named exception tests. Verify the
   stored state and supported read API, not only rendered output or HTTP status.
 - Run Django/pytest with the root `.venv/bin/python` in this checkout (or
-  `../../.venv/bin/python` from a backend package). Use isolated test settings,
+  `../../../.venv/bin/python` from `packages/python/<package>`). Use isolated test settings,
   never the host database, for automated tests.
 
 ## Conversation history example
@@ -52,4 +52,4 @@ guidance also applies. This policy is for human contributors and coding agents.
 - Synthetic normalized turns must use the runtime's history writer under its
   lock/transaction contract, not only insert `AgentRun.input/output` JSON.
 - Studio workspace-specific checks and seeding rules are in
-  [WORKSPACE.md](agent/django_agent_studio/WORKSPACE.md#fixture-and-demo-policy).
+  [WORKSPACE.md](packages/python/django_agent_studio/WORKSPACE.md#fixture-and-demo-policy).

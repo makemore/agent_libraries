@@ -4,15 +4,15 @@ Status: **Delivery/approval draft; M0 tracker implemented separately, no live en
 Companion: [implementation slices and acceptance tests](sdlc-implementation-plan.md).
 Local-first revision: [internal capabilities and provider sync](sdlc-local-first.md).
 This remains a proposed delivery/approval contract, not evidence of workflow APIs.
-The owning package now has [implemented M0 contracts](../agent/django_agent_sdlc/docs/contracts.md)
-and [installation/verification evidence](../agent/django_agent_sdlc/README.md).
+The owning package now has [implemented M0 contracts](../packages/python/django_agent_sdlc/docs/contracts.md)
+and [installation/verification evidence](../packages/python/django_agent_sdlc/README.md).
 This cross-package design remains here until its later milestones are implemented.
 
 ## 1. Scope and package boundary
 
 Build `django-agent-sdlc`, containing the `django_agent_sdlc` Django app, as the
-first consumer of the [optional ACE bridge](../agent/django_agent_runtime/docs/ace-integration.md).
-The core checkout is `agent/django_agent_sdlc`; its optional delivery app is not yet implemented.
+first consumer of the [optional ACE bridge](../packages/python/django_agent_runtime/docs/ace-integration.md).
+The core checkout is `packages/python/django_agent_sdlc`; its optional delivery app is not yet implemented.
 
 - ACE owns durable process state, inboxes, activities, retries and timers.
 - Runtime owns agent execution, conversations, history, tools and credential grants.
@@ -39,15 +39,15 @@ dependency graphs, autonomous release, and policy scripting are outside v1.
 
 | Existing source | Consequence for SDLC |
 | --- | --- |
-| [Bridge services](../agent/django_agent_runtime/integrations/ace/services.py): `bind_workflow`, `dispatch_agent`, `publish_signal` | Supported services reject rebinding a workflow's execution principal; dispatch uses that principal, not a user ID supplied in metadata. This is not protection against direct privileged ORM/SQL mutation. |
-| [Trusted run services](../agent/django_agent_runtime/services/runs.py): `submit_run`, `read_run`, `cancel_run` | Keep validation, ownership, quotas, history and cancellation semantics; returned ORM objects are not public API projections. |
-| [Run serializer](../agent/django_agent_runtime/api/serializers.py): `AgentRunCreateSerializer` | `system_version_id` is a supported explicit field; ownership and execution-target metadata are server-managed. |
-| [Runtime registry](../agent/django_agent_runtime/runtime/registry.py): `get_runtime_for_system_version` | Loads the current system entry agent's pinned revision from the selected version. It is not a universal immutable execution capsule. |
-| [Runtime execution targets](../agent/django_agent_runtime/runtime/execution_targets.py) | Stable agent/directory targets have supported server-side binding and reauthorization. They do not prove filesystem isolation or code revision pinning. |
-| [Managed MCP models](../agent/django_agent_runtime/models/mcp_connections.py) | Reuse `MCPServerConnection`, `MCPPrincipalGrant` and the credential vault when using MCP; `MCPRunMount` is audit evidence, not authority. |
-| [Studio workspace adapter](../agent/django_agent_studio/workspace_backends.py) | Existing host projects use immutable namespaced keys; SDLC need not introduce a second organization or membership system. |
-| [Studio access rules](../agent/django_agent_studio/WORKSPACE.md#ownership-and-access) | A project viewer cannot automatically read an execution principal's runtime history. Workspace revocation alone is not runtime/credential revocation. |
-| [Runtime definitions](../agent/django_agent_runtime/models/definitions.py) | Agent revisions/system snapshots can be referenced. `SpecDocument` describes agent behavior, not a ready-made delivery approval ledger. |
+| [Bridge services](../packages/python/django_agent_runtime/integrations/ace/services.py): `bind_workflow`, `dispatch_agent`, `publish_signal` | Supported services reject rebinding a workflow's execution principal; dispatch uses that principal, not a user ID supplied in metadata. This is not protection against direct privileged ORM/SQL mutation. |
+| [Trusted run services](../packages/python/django_agent_runtime/services/runs.py): `submit_run`, `read_run`, `cancel_run` | Keep validation, ownership, quotas, history and cancellation semantics; returned ORM objects are not public API projections. |
+| [Run serializer](../packages/python/django_agent_runtime/api/serializers.py): `AgentRunCreateSerializer` | `system_version_id` is a supported explicit field; ownership and execution-target metadata are server-managed. |
+| [Runtime registry](../packages/python/django_agent_runtime/runtime/registry.py): `get_runtime_for_system_version` | Loads the current system entry agent's pinned revision from the selected version. It is not a universal immutable execution capsule. |
+| [Runtime execution targets](../packages/python/django_agent_runtime/runtime/execution_targets.py) | Stable agent/directory targets have supported server-side binding and reauthorization. They do not prove filesystem isolation or code revision pinning. |
+| [Managed MCP models](../packages/python/django_agent_runtime/models/mcp_connections.py) | Reuse `MCPServerConnection`, `MCPPrincipalGrant` and the credential vault when using MCP; `MCPRunMount` is audit evidence, not authority. |
+| [Studio workspace adapter](../packages/python/django_agent_studio/workspace_backends.py) | Existing host projects use immutable namespaced keys; SDLC need not introduce a second organization or membership system. |
+| [Studio access rules](../packages/python/django_agent_studio/WORKSPACE.md#ownership-and-access) | A project viewer cannot automatically read an execution principal's runtime history. Workspace revocation alone is not runtime/credential revocation. |
+| [Runtime definitions](../packages/python/django_agent_runtime/models/definitions.py) | Agent revisions/system snapshots can be referenced. `SpecDocument` describes agent behavior, not a ready-made delivery approval ledger. |
 
 All entity and service names below are **proposed SDLC names**, not current APIs.
 

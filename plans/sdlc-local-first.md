@@ -1,7 +1,7 @@
 # Local-first SDLC capabilities and provider synchronization
 
 Status: **M0 tracker implemented and isolated-tested; remaining capabilities and sync are design only.** 2026-09-17.
-See [the package README](../agent/django_agent_sdlc/README.md) for implemented scope,
+See [the package README](../packages/python/django_agent_sdlc/README.md) for implemented scope,
 installation and verification. Nothing has been enabled in a live host.
 The user requested an internal issue tracker and lightweight internal alternatives
 that can later be superseded by or synchronized with external services. This updates
@@ -233,17 +233,17 @@ generation/invalidation service; a synced issue status never authorizes executio
 
 ## 5. Existing Warp integrations: reuse with boundaries
 
-The relevant code is inside Warp's nested projects, not just `warp/backend`.
+The relevant code is inside Warp's nested projects, not just `products/warp/backend`.
 The following source was inspected; it has not been validated for SDLC production use.
 
 | Existing source | Reusable shape | Work required before SDLC reuse |
 | --- | --- | --- |
-| [Shipwright provider interface](../warp/other_projects/shipwright/backend/integrations/base.py) | `GitProviderAdapter`, `AdapterCapabilities`, repository/PR DTOs. | Keep code-host capabilities separate from issue/sync/storage capabilities. No SDLC dependency on Shipwright's generic top-level `integrations` app. |
-| [GitHub](../warp/other_projects/shipwright/backend/integrations/git/github.py) / [GitLab](../warp/other_projects/shipwright/backend/integrations/git/gitlab.py) | Repository discovery, file-at-ref, webhook and PR operations. | Add scoped grant resolution, bounded HTTP timeouts, safe errors and durable operation/reconciliation contracts. These interfaces are not an issue-sync implementation. |
-| [Plain Git](../warp/other_projects/shipwright/backend/integrations/git/plain_git.py) | Represents a Git remote without a hosted API and declares unsupported operations. | It supplies metadata, not a local executor. Replace URL-as-ID/token overloading with an explicit stable repository binding and separate grant reference. Resolve the actual branch rather than assuming `main`. |
-| [Local clone manager](../warp/other_projects/shipwright/backend/integrations/storage/git_clone_manager.py) / [Git storage](../warp/other_projects/shipwright/backend/integrations/storage/git_local.py) | Checkout lifecycle and file-access separation. | Existing manager hard-resets disposable caches, injects credentials into clone URLs and logs command errors. Do not use it unchanged on user worktrees or copy its credential transport/logging. |
-| [Storage interface](../warp/other_projects/shipwright/backend/integrations/storage/base.py) | Capability-based file access/version references. | Prefer configured Django storage for SDLC artifacts; do not import another vault or transfer its provider defaults. Preserve SDLC ACL/retention semantics. |
-| [Conduit GitHub service](../warp/other_projects/conduit/backend/integrations/services/github.py) | Branch/SHA, PR lookup/create and comment request shapes. | It depends on Conduit's integration model and builds credential-bearing clone URLs. Adapt the boundary; do not import its identity/storage model into SDLC. |
+| [Shipwright provider interface](../products/shipwright/backend/integrations/base.py) | `GitProviderAdapter`, `AdapterCapabilities`, repository/PR DTOs. | Keep code-host capabilities separate from issue/sync/storage capabilities. No SDLC dependency on Shipwright's generic top-level `integrations` app. |
+| [GitHub](../products/shipwright/backend/integrations/git/github.py) / [GitLab](../products/shipwright/backend/integrations/git/gitlab.py) | Repository discovery, file-at-ref, webhook and PR operations. | Add scoped grant resolution, bounded HTTP timeouts, safe errors and durable operation/reconciliation contracts. These interfaces are not an issue-sync implementation. |
+| [Plain Git](../products/shipwright/backend/integrations/git/plain_git.py) | Represents a Git remote without a hosted API and declares unsupported operations. | It supplies metadata, not a local executor. Replace URL-as-ID/token overloading with an explicit stable repository binding and separate grant reference. Resolve the actual branch rather than assuming `main`. |
+| [Local clone manager](../products/shipwright/backend/integrations/storage/git_clone_manager.py) / [Git storage](../products/shipwright/backend/integrations/storage/git_local.py) | Checkout lifecycle and file-access separation. | Existing manager hard-resets disposable caches, injects credentials into clone URLs and logs command errors. Do not use it unchanged on user worktrees or copy its credential transport/logging. |
+| [Storage interface](../products/shipwright/backend/integrations/storage/base.py) | Capability-based file access/version references. | Prefer configured Django storage for SDLC artifacts; do not import another vault or transfer its provider defaults. Preserve SDLC ACL/retention semantics. |
+| [Conduit GitHub service](../products/conduit/backend/integrations/services/github.py) | Branch/SHA, PR lookup/create and comment request shapes. | It depends on Conduit's integration model and builds credential-bearing clone URLs. Adapt the boundary; do not import its identity/storage model into SDLC. |
 
 A local Git adapter must validate the explicit repository/allowed root, preserve dirty
 user worktrees and operate on isolated approved worktrees for writes. Protect against

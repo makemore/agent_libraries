@@ -11,7 +11,7 @@
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-AGENT_DIR="$REPO_ROOT/agent/agent_studio"
+AGENT_DIR="$REPO_ROOT/products/studio"
 AGENT_VENV="${AGENT_VENV:-$HOME/.virtualenvs/agent_studio}"
 PORT="${PORT:-8000}"
 SETTINGS="${SETTINGS:-agent_studio.settings.dev}"

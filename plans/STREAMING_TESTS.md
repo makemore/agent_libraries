@@ -8,7 +8,7 @@ sequences of events:
 | Layer | What it does | Where |
 |---|---|---|
 | **Level A** | Drives the real `ChatViewModel` + `APIClient` + `SSEClient` against an in-process HTTP mock that replays the fixtures. No emulator/simulator. Fastest, deterministic, runs in CI per PR. | iOS: `Tests/AgentFrontendTests/Streaming/`<br>Android: `src/test/java/.../streaming/` |
-| **Level C** | Builds and launches a host UI on a real simulator/emulator pointed at a local Python stub server (`clients/test-stub-server/`) replaying the same fixtures over real SSE. Asserts on the rendered chat. | iOS: `Example/ExampleAppUITests/`<br>Android: `src/androidTest/java/.../streaming/` |
+| **Level C** | Builds and launches a host UI on a real simulator/emulator pointed at a local Python stub server (`test-harness/stub-server/`) replaying the same fixtures over real SSE. Asserts on the rendered chat. | iOS: `Example/ExampleAppUITests/`<br>Android: `src/androidTest/java/.../streaming/` |
 
 Both layers cover the same five scenarios:
 
@@ -20,7 +20,7 @@ Both layers cover the same five scenarios:
 | `sai_multi_agent_with_blocks` | Multi-agent flow with a Callout + CardList + ActionButtons block from a sub-agent tool. |
 | `run_failed` | `run.failed` surfaces an error banner / `vm.error`. |
 
-Fixtures live in [`clients/test-fixtures/sse/`](test-fixtures/sse/README.md).
+Fixtures live in [`test-harness/fixtures/sse/`](../test-harness/fixtures/sse/README.md).
 
 ## Running Level A (no device)
 
@@ -42,12 +42,12 @@ cd clients/agent-android
 
 ### 1. Start the stub server
 ```bash
-cd clients/test-stub-server
+cd test-harness/stub-server
 python -m venv .venv && .venv/bin/pip install -r requirements.txt
 .venv/bin/python server.py --port 8765
 ```
 Health check: <http://127.0.0.1:8765/health>. See
-[`clients/test-stub-server/README.md`](test-stub-server/README.md) for
+[`test-harness/stub-server/README.md`](../test-harness/stub-server/README.md) for
 the full protocol, header overrides and `--passthrough` mode.
 
 ### 2a. iOS

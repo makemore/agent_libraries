@@ -3,7 +3,7 @@
 Run pytest with the library root .venv, setting RUN_RAISE_MCP_INTEROP=1 and
 absolute non-secret RAISE_MCP_BACKEND / RAISE_MCP_PYTHON paths. No Raise imports
 occur in this interpreter. Missing external checkout/SDK environment skips.
-See agent/agent_runtime_core/deploy/mcp/README.md for the exact recipe.
+See packages/python/agent_runtime_core/deploy/mcp/README.md for the exact recipe.
 """
 
 from __future__ import annotations

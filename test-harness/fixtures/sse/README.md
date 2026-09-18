@@ -37,7 +37,7 @@ client's settled state rather than wall-clock playback timing.
 ### Wire format produced
 
 Each event is serialised as the same SSE frame the real backend
-produces, see `agent/django_agent_runtime/api/views.py::event_generator`:
+produces, see `packages/python/django_agent_runtime/api/views.py::event_generator`:
 
 ```
 event: assistant.delta

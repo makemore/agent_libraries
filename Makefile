@@ -1,10 +1,11 @@
 PYTHON ?= python3
 
-.PHONY: help checkout install test test-harness test-web test-ios test-android test-jimmy clean watch-frontends watch-widget watch-studio
+.PHONY: help checkout status install test test-harness test-web test-ios test-android test-jimmy clean watch-frontends watch-widget watch-studio
 
 help:
 	@echo "Targets:"
-	@echo "  make checkout   Clone current sub-repos (idempotent)"
+	@echo "  make checkout   Initialize missing pinned repos; preserve existing work"
+	@echo "  make status     Show each repository's branch, changes and upstream state"
 	@echo "  make install    Editable-install the Python packages"
 	@echo "  make test       Run offline stub-server and TypeScript client tests"
 	@echo "  make test-ios   Run headless iOS tests on macOS (no UI dependencies)"
@@ -14,7 +15,10 @@ help:
 	@echo "  make clean      Preview ignored files only; deletes nothing"
 
 checkout:
-	@bash scripts/checkout.sh
+	@PYTHON="$(PYTHON)" bash scripts/checkout.sh
+
+status:
+	@$(PYTHON) scripts/workspace.py status
 
 install: checkout
 	@bash scripts/install.sh
@@ -36,7 +40,7 @@ watch-widget:
 	cd clients/agent-frontend && npm run watch -- --studio
 
 watch-studio:
-	cd agent/django_agent_studio/frontend && npm run build:watch
+	cd packages/python/django_agent_studio/frontend && npm run build:watch
 
 test-ios:
 	$(PYTHON) scripts/test_ios_headless.py $(IOS_TEST_ARGS)
@@ -45,14 +49,8 @@ test-android:
 	cd clients/agent-android && ./gradlew --offline :testDebugUnitTest :agent-client:testDebugUnitTest
 
 test-jimmy:
-	cd jimmy && uv run --locked --offline pytest
+	cd products/jimmy && uv run --locked --offline pytest
 
 clean:
 	@echo "Dry run only. Review each repository before removing any files."
-	@for r in agent/agent_runtime_core agent/django_agent_runtime agent/django_agent_studio \
-	  agent/agent_studio chisel django_chisel parrot docs clients/agent-frontend \
-	  clients/agent-ios clients/agent-android clients/agent-unity clients/agent-client jimmy; do \
-	  if [ -e "$$r/.git" ]; then \
-	    echo "--- $$r"; git -C "$$r" clean -ndX; \
-	  fi; \
-	done
+	@$(PYTHON) scripts/workspace.py clean-preview

@@ -60,7 +60,7 @@ A new conversation mode where message data lives primarily on the **client** and
 
 ### 2.1 New `message_storage_mode`: `"ephemeral"`
 
-**File: `agent/django_agent_runtime/models/base.py`**
+**File: `packages/python/django_agent_runtime/models/base.py`**
 
 Add `EPHEMERAL = "ephemeral"` to `MessageStorageMode`:
 
@@ -71,7 +71,7 @@ class MessageStorageMode(models.TextChoices):
     EPHEMERAL = "ephemeral", "Ephemeral (client-owned, transient server)"
 ```
 
-**File: `agent/django_agent_runtime/conf.py`**
+**File: `packages/python/django_agent_runtime/conf.py`**
 
 Add new settings:
 
@@ -83,7 +83,7 @@ EPHEMERAL_CLEANUP_INTERVAL_SECONDS: int = 3600  # Run cleanup every hour
 
 ### 2.2 Agent Definition Support
 
-**File: `agent/django_agent_runtime/models/definitions.py`**
+**File: `packages/python/django_agent_runtime/models/definitions.py`**
 
 The existing `message_storage_mode` field on `AgentDefinition` already supports choices — it will automatically pick up the new `EPHEMERAL` choice. Agents can be configured per-agent:
 
@@ -94,7 +94,7 @@ agent_def.message_storage_mode = "ephemeral"
 
 ### 2.3 API Changes
 
-**File: `agent/django_agent_runtime/api/views.py` — `BaseAgentRunViewSet.create()`**
+**File: `packages/python/django_agent_runtime/api/views.py` — `BaseAgentRunViewSet.create()`**
 
 When ephemeral mode is active:
 
@@ -121,7 +121,7 @@ if is_ephemeral:
 
 ### 2.4 Runner Changes
 
-**File: `agent/django_agent_runtime/runtime/runner.py`**
+**File: `packages/python/django_agent_runtime/runtime/runner.py`**
 
 The runner's `_load_conversation_history()` currently loads history from previous runs in the DB. In ephemeral mode:
 
@@ -153,7 +153,7 @@ async def _finalize_run(self, run_id, ctx, result):
 
 ### 2.5 Pickup Window & Cleanup
 
-**New file: `agent/django_agent_runtime/management/commands/cleanup_ephemeral.py`**
+**New file: `packages/python/django_agent_runtime/management/commands/cleanup_ephemeral.py`**
 
 A management command (also runnable as a periodic task) that hard-deletes expired ephemeral data:
 
@@ -250,7 +250,7 @@ EPHEMERAL_ALLOW_MEMORY_EXTRACTION: bool = False  # Default: don't extract from e
 
 ### 3.1 Type Changes
 
-**File: `clients/agent-client/src/types/index.ts`**
+**File: `clients/agent-frontend/packages/agent-client/src/types/index.ts`**
 
 ```typescript
 export interface CreateRunParams {
@@ -268,7 +268,7 @@ export interface CreateRunParams {
 
 ### 3.2 Client Config
 
-**File: `clients/agent-client/src/types/index.ts`**
+**File: `clients/agent-frontend/packages/agent-client/src/types/index.ts`**
 
 ```typescript
 export interface AgentClientConfig {
@@ -282,7 +282,7 @@ export interface AgentClientConfig {
 
 ### 3.3 Client Implementation
 
-**File: `clients/agent-client/src/client.ts`**
+**File: `clients/agent-frontend/packages/agent-client/src/client.ts`**
 
 When ephemeral mode is enabled:
 1. The client manages conversation history locally.
@@ -564,7 +564,7 @@ class SharedPrefsConversationStore(context: Context) : LocalConversationStore {
    - The current SSE pattern works fine for ephemeral. No changes needed.
    - If we add WebSocket support later, ephemeral works the same way.
 
-**File: `agent/django_agent_runtime/api/serializers.py`**
+**File: `packages/python/django_agent_runtime/api/serializers.py`**
 
 Add `ephemeral` boolean field to `AgentRunCreateSerializer`:
 

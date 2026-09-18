@@ -63,7 +63,7 @@ The feature is **implemented end-to-end**, not just planned:
 | Server | Implemented | `django_agent_runtime/api/views.py` (`create`, `pickup`), `runtime/runner.py` (`_load_conversation_history` ~365, `_finalize_run` ~580), `management/commands/cleanup_ephemeral.py`, `models/definitions.py` (`MessageStorageMode.EPHEMERAL`), `api/serializers.py` (`ephemeral` field) |
 | iOS | Implemented | `ChatWidgetConfig.swift:123` (`ephemeral`), `ChatViewModel.swift` (`sendMessage` ~468, `restoreConversationIfNeeded` ~427), `APIClient+Requests.swift:109`, `Services/LocalHistoryStore.swift` (SQLite) |
 | Android | Implemented | `ChatWidgetConfig.kt:113` (`ephemeral`), `ChatViewModel.kt` (`sendMessage` ~419, restore guard ~287), `networking/APIClientRequests.kt:102`, `agent-client/.../services/LocalHistoryStore.kt` (SQLite) |
-| Shared test infra | Exists | `clients/test-fixtures/sse/*.json`, `clients/test-stub-server/` (Flask SSE replayer), `SSEFixture.swift` / `SSEFixture.kt` |
+| Shared test infra | Exists | `test-harness/fixtures/sse/*.json`, `test-harness/stub-server/` (Flask SSE replayer), `SSEFixture.swift` / `SSEFixture.kt` |
 
 ### Gaps this plan exists to close
 
@@ -143,7 +143,7 @@ idempotent and safe to run frequently.
 ## 3. Layer A — Server invariant suite (source of truth for C1)
 
 **Framework:** pytest + `pytest-django`, transactional DB.
-**New file:** `agent/django_agent_runtime/tests/test_ephemeral_invariants.py`
+**New file:** `packages/python/django_agent_runtime/tests/test_ephemeral_invariants.py`
 
 ### A1. Persistence discrimination
 - `test_ephemeral_run_creates_no_normalized_messages` — run ephemeral; assert
@@ -193,7 +193,7 @@ This is the core of the "consistent on iOS and Android" requirement. **One share
 spec drives both platforms.** If a platform diverges, its test fails.
 
 ### B1. The shared contract spec
-**New file:** `clients/test-fixtures/ephemeral/contract.json`
+**New file:** `test-harness/fixtures/ephemeral/contract.json`
 
 ```jsonc
 {
@@ -249,7 +249,7 @@ Invariants every scenario pins (these are the parity guarantees):
 ### B3. Android parity test
 **New file:** `clients/agent-android/src/test/.../EphemeralContractParityTest.kt`
 - Load the **same** `contract.json` (the fixtures walker already climbs to
-  `clients/test-fixtures/`).
+  `test-harness/fixtures/`).
 - Use `MockWebServer`; read each `RecordedRequest` body and assert == `expectedRequests[i]`.
 - Assert `LocalHistoryStore` contents and `forbiddenCalls` exactly as iOS.
 
@@ -308,7 +308,7 @@ Several of these **fail today** and thereby define the hardening backlog. Mark t
 
 **Framework:** pytest with a mock httpx/OpenAI transport that records the outbound
 request without hitting the network.
-**New file:** `agent/django_agent_runtime/tests/test_modal_egress.py`
+**New file:** `packages/python/django_agent_runtime/tests/test_modal_egress.py`
 
 - `test_base_url_is_honored_and_https`: with `MODEL_PROVIDER="openai"` and
   `base_url="https://<modal>/v1"`, assert the client's outbound request goes to that
@@ -335,8 +335,8 @@ request without hitting the network.
 
 | Layer | Command | Where it runs |
 |-------|---------|---------------|
-| A, D (server) | `pytest agent/django_agent_runtime/tests/test_ephemeral_invariants.py agent/django_agent_runtime/tests/test_modal_egress.py` | Backend CI job |
-| B-iOS, C-iOS | `clients/scripts/` → `swift test` (extend existing scripts) | macOS CI runner |
+| A, D (server) | `pytest packages/python/django_agent_runtime/tests/test_ephemeral_invariants.py packages/python/django_agent_runtime/tests/test_modal_egress.py` | Backend CI job |
+| B-iOS, C-iOS | `scripts/` → `swift test` (extend existing scripts) | macOS CI runner |
 | B-Android, C-Android | `./gradlew testDebugUnitTest` (+ Robolectric) | Linux CI runner |
 | Spec shape guard | `pytest` over `contract.json` | Backend CI job (fast pre-gate) |
 

@@ -8,7 +8,7 @@ Approval of this draft does not configure a host, provision identities or contac
 
 ## 1. Package shape and dependencies
 
-Owning local independent checkout: [agent/django_agent_sdlc](../agent/django_agent_sdlc/README.md).
+Owning local independent checkout: [packages/python/django_agent_sdlc](../packages/python/django_agent_sdlc/README.md).
 It is not yet published, registered with checkout automation, or enabled in a host.
 The table below retains the planned optional layout; M0 uses `models.py`,
 `services.py`, `backends.py`, `views.py`, `forms.py` and `sdlc_tests/`.
@@ -39,8 +39,8 @@ host's app list, shared dependency versions or workspace membership during scaff
 
 ### M0 — usable internal work tracking, without providers
 
-**Implemented:** [package installation and usage](../agent/django_agent_sdlc/README.md)
-and [implemented contracts/evidence](../agent/django_agent_sdlc/docs/contracts.md#verification-and-acceptance).
+**Implemented:** [package installation and usage](../packages/python/django_agent_sdlc/README.md)
+and [implemented contracts/evidence](../packages/python/django_agent_sdlc/docs/contracts.md#verification-and-acceptance).
 226 tests passed on private PostgreSQL 17 / Django 5.2.17; 216 passed with 10
 PostgreSQL-only skips on SQLite and fresh wheel installs with Django 5.2.17/6.1.1.
 Checks/migrations, wheel resources and lint passed. Counts overlap; no live host,
@@ -239,7 +239,7 @@ read APIs; HTTP 200, model mocks or rendered screens alone are insufficient.
 
 Run isolated Django/pytest with the meta-repo root `.venv/bin/python`, never host
 settings. New package test settings must be unable to resolve a live DB from inherited
-environment values. Extend the proven [disposable PostgreSQL harness pattern](../agent/django_agent_runtime/tests/run_ace_postgres.py)
+environment values. Extend the proven [disposable PostgreSQL harness pattern](../packages/python/django_agent_runtime/tests/run_ace_postgres.py)
 for SDLC in its owning repository; do not aim bridge test settings at a host database.
 
 Implemented M0 tests and proposed later targets (later files do not yet exist):

@@ -27,17 +27,6 @@ htmlcov/
 # mkdocs
 docs/site/
 
-# Nested standalone repos (each is its own git repo, not a submodule)
-agent/
-chisel/
-clients/agent-android/
-clients/agent-frontend/
-clients/agent-ios/
-clients/agent-unity/
-django_chisel/
-parrot/
-
-# Jimmy is an independent local repository (no remote configured).
-/jimmy/
-/warp/
-
+# Independent repositories are tracked as gitlinks in .gitmodules.
+# Ignore local tooling, never entire project groups.
+.ruff_cache/
