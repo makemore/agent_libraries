@@ -19,7 +19,14 @@ REPOS=(
   "https://github.com/makemore/agent-runtime-core.git             agent/agent_runtime_core"
   "https://github.com/makemore/agent_studio.git                   agent/agent_studio"
   "https://github.com/makemore/django-agent-runtime.git           agent/django_agent_runtime"
+  "https://github.com/makemore/django-agent-sdlc.git              agent/django_agent_sdlc"
   "https://github.com/makemore/django_agent_studio.git            agent/django_agent_studio"
+  # standalone products and their currently nested independent repositories
+  "https://github.com/makemore/jimmy.git                          jimmy"
+  "https://github.com/makemore/warp.git                           warp"
+  "https://github.com/makemore/conduit.git                        warp/other_projects/conduit"
+  "https://github.com/makemore/machine.git                        warp/other_projects/machine"
+  "https://github.com/makemore/manyhands.git                      warp/other_projects/manyhands"
 )
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"

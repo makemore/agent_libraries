@@ -23,11 +23,11 @@ reads. It uses explicit connection profiles and host-approved credentials, not
 Django settings or database access. Local source only; not yet published or part
 of `make install`. SDLC remote authentication and write commands remain future work.
 
-[`agent/django_agent_sdlc`](agent/django_agent_sdlc/README.md) is the new local,
-independent Django-only issue tracker: private scopes, work items, notes/checklists,
+[`agent/django_agent_sdlc`](agent/django_agent_sdlc/README.md) is the independent
+Django-only issue tracker: private scopes, work items, notes/checklists,
 and session UI/API. M0 is isolated-tested; approval/runtime workflows and provider
-sync remain planned. It is not yet published or included in `make checkout` /
-`make install`, and no live host is enabled. See its README for explicit installation.
+sync remain planned. It is cloned by `make checkout`, but is not yet published or
+included in `make install`; no live host is enabled. See its README for installation.
 
 ## Development defaults
 
@@ -50,9 +50,9 @@ model via `--model` or `JIMMY_MODEL` and an existing OpenAI credential source.
 Writes and commands require exact allow-once approval; JSON/noninteractive runs
 deny them by default. Approved commands are **not sandboxed**.
 
-Jimmy has no configured remote and is not cloned by `make checkout`. Publication
-is blocked on a tested core release, core-commit provenance, licensing decisions,
-and manual editor/live-provider acceptance. See its README for current limits.
+Jimmy is an independent repository cloned by `make checkout`. Publication remains
+blocked on a tested core release, core-commit provenance, licensing decisions, and
+manual editor/live-provider acceptance. See its README for current limits.
 
 ## One-shot checkout
 
@@ -142,7 +142,8 @@ agent_libraries/
 ├── docs/                    ← mkdocs source (own repo)
 ├── agent/                   ← backend Python packages (own repo per package)
 ├── clients/                 ← mobile, web, TS, Unity clients (own repo each)
-├── jimmy/                   ← local standalone coding agent (own repo; no remote)
+├── jimmy/                   ← standalone coding agent (own repo)
+├── warp/                    ← Warp product monorepo (own repo)
 ├── chisel/, django_chisel/  ← tool-builder framework (own repo each)
 └── parrot/                  ← agent version-control registry (own repo)
 ```
@@ -162,12 +163,18 @@ shared collateral.
 | `agent/agent_runtime_core/` | https://github.com/makemore/agent-runtime-core |
 | `agent/agent_studio/` | https://github.com/makemore/agent_studio |
 | `agent/django_agent_runtime/` | https://github.com/makemore/django-agent-runtime |
+| `agent/django_agent_sdlc/` | https://github.com/makemore/django-agent-sdlc |
 | `agent/django_agent_studio/` | https://github.com/makemore/django_agent_studio |
 | `clients/agent-frontend/` | https://github.com/makemore/agent-frontend |
 | `clients/agent-android/` | https://github.com/makemore/agent-android |
 | `clients/agent-unity/` | https://github.com/makemore/agent-unity |
 | `clients/agent-client/` (legacy; not cloned by default) | https://github.com/makemore/agent-client |
 | `clients/agent-ios/` | https://github.com/makemore/agent-ios |
+| `jimmy/` | https://github.com/makemore/jimmy |
+| `warp/` | https://github.com/makemore/warp |
+| `warp/other_projects/conduit/` | https://github.com/makemore/conduit |
+| `warp/other_projects/machine/` | https://github.com/makemore/machine |
+| `warp/other_projects/manyhands/` | https://github.com/makemore/manyhands |
 
 ## Read the docs
 
