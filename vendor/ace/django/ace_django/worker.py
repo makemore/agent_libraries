@@ -20,6 +20,7 @@ from django.utils.module_loading import import_string
 from ace_django.exceptions import LeaseOwnershipLost, WorkerConfigurationError
 from ace_django.models import AceWorkerHeartbeat, WorkerRole, WorkerStatus
 from ace_django.queue import ActivityLease, DjangoActivityQueue
+from ace_django.runtime import DjangoRuntime
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -44,17 +45,19 @@ class WorkerRuntime:
     workflow_engine: WorkflowEngine | None = None
 
 
-def load_runtime() -> WorkerRuntime:
+def load_runtime() -> DjangoRuntime | WorkerRuntime:
     path = getattr(settings, "ACE_RUNTIME_FACTORY", None)
     if not isinstance(path, str) or not path.strip():
         raise WorkerConfigurationError(
-            "ACE_RUNTIME_FACTORY must be a dotted path to a callable returning WorkerRuntime."
+            "ACE_RUNTIME_FACTORY must be a dotted path to a callable returning "
+            "DjangoRuntime or WorkerRuntime."
         )
     factory = cast("Callable[[], object]", import_string(path))
     runtime = factory()
-    if not isinstance(runtime, WorkerRuntime):
+    if not isinstance(runtime, (DjangoRuntime, WorkerRuntime)):
         raise WorkerConfigurationError(
-            f"ACE runtime factory {path!r} returned {type(runtime).__name__}, not WorkerRuntime."
+            f"ACE runtime factory {path!r} returned {type(runtime).__name__}, "
+            "not DjangoRuntime or WorkerRuntime."
         )
     return runtime
 
@@ -62,7 +65,7 @@ def load_runtime() -> WorkerRuntime:
 class AceWorker:
     def __init__(
         self,
-        runtime: WorkerRuntime,
+        runtime: DjangoRuntime | WorkerRuntime,
         *,
         worker_id: str | None = None,
         queues: tuple[str, ...] = ("medium",),
@@ -87,7 +90,10 @@ class AceWorker:
         self.lease_duration = lease_duration
         self.renewal_interval = renewal_interval
         self._runtime = runtime
-        self._queue = DjangoActivityQueue(getattr(runtime, "workflow_engine", None))
+        self._queue = DjangoActivityQueue(
+            getattr(runtime, "workflow_engine", None),
+            use_inbox=isinstance(runtime, DjangoRuntime),
+        )
         self._stop = stop_signal or threading.Event()
         self._now = now
         self._hostname = hostname

@@ -17,6 +17,18 @@ Existing legacy checkouts are left untouched.
 `agent/django_agent_studio` is the reusable Studio application.
 These are different roles, not interchangeable package locations.
 
+[`clients/agent-cli`](clients/agent-cli/README.md) now supplies **`studio`**, a
+standalone, dependency-free Python REST client for runtime and Studio metadata
+reads. It uses explicit connection profiles and host-approved credentials, not
+Django settings or database access. Local source only; not yet published or part
+of `make install`. SDLC remote authentication and write commands remain future work.
+
+[`agent/django_agent_sdlc`](agent/django_agent_sdlc/README.md) is the new local,
+independent Django-only issue tracker: private scopes, work items, notes/checklists,
+and session UI/API. M0 is isolated-tested; approval/runtime workflows and provider
+sync remain planned. It is not yet published or included in `make checkout` /
+`make install`, and no live host is enabled. See its README for explicit installation.
+
 ## Development defaults
 
 Contributors and coding agents must follow [the setup/defaults policy](AGENTS.md):

@@ -1,8 +1,10 @@
 from datetime import timedelta
+from unittest.mock import patch
 from uuid import UUID
 
 import pytest
-from ace import WorkflowStatus
+from ace import WorkflowEventType, WorkflowRegistry, WorkflowStatus
+from ace_django.dispatcher import DjangoWorkflowDispatcher
 from ace_django.exceptions import LeaseOwnershipLost
 from ace_django.models import (
     ActivityAttempt,
@@ -11,11 +13,15 @@ from ace_django.models import (
     ActivityRun,
     ActivityStatus,
     AttemptStatus,
+    InboxStatus,
+    WorkflowInboxEvent,
     WorkflowRun,
 )
 from ace_django.queue import DjangoActivityQueue
+from ace_django.store import DjangoExecutionStore
 from ace_django.tests.helpers import (
     FROZEN_NOW,
+    DrainingAdapterWorkflow,
     build_draining_engine,
     build_engine,
     build_group_engine,
@@ -232,6 +238,69 @@ def test_draining_cancellation_receives_terminal_activity_event(outcome: str) ->
     assert draining.status == WorkflowStatus.CANCELLING
     assert run.status == WorkflowStatus.CANCELLED
     assert activity.status == expected_activity_status
+
+
+@pytest.mark.parametrize("with_engine", [False, True])
+def test_draining_inbox_cancellation_waits_for_dispatcher_without_inline_engine(with_engine: bool) -> None:
+    engine = build_draining_engine(
+        "10000000-0000-0000-0000-000000000041",
+        "20000000-0000-0000-0000-000000000041",
+        "20000000-0000-0000-0000-000000000042",
+        "20000000-0000-0000-0000-000000000043",
+    )
+    started = engine.start("draining-adapter-test", {})
+    activity = ActivityRun.objects.get(workflow_run_id=started.run_id)
+    # Named inbox-mode scenario: cancellation must enqueue even if a legacy
+    # engine is supplied. The existing legacy draining test stays unchanged.
+    queue = DjangoActivityQueue(
+        engine if with_engine else None,
+        token_factory=SequenceTokens(FIRST_TOKEN),
+        use_inbox=True,
+    )
+    lease = queue.claim("worker-1", now=FROZEN_NOW)
+    assert lease is not None
+    draining = engine.request_cancellation(started.run_id, reason="operator request")
+    assert draining.status == WorkflowStatus.CANCELLING
+    run = WorkflowRun.objects.get(pk=started.run_id)
+    event_sequence = run.last_event_sequence
+    inbox_sequence = run.last_inbox_sequence
+
+    with patch.object(engine, "handle_event", wraps=engine.handle_event) as handle_event:
+        assert queue.cancel(lease, message="cooperative cancellation", now=FROZEN_NOW) is None
+        handle_event.assert_not_called()
+
+    activity.refresh_from_db()
+    attempt = activity.attempts.get()
+    assert activity.status == ActivityStatus.CANCELLED
+    assert attempt.status == AttemptStatus.CANCELLED
+    assert activity.completed_at == attempt.completed_at == FROZEN_NOW
+    run.refresh_from_db()
+    assert run.status == WorkflowStatus.CANCELLING
+    assert run.last_event_sequence == event_sequence
+    assert run.last_inbox_sequence == inbox_sequence + 1
+    inbox = WorkflowInboxEvent.objects.get(workflow_run=run)
+    assert inbox.status == InboxStatus.PENDING and inbox.processed_at is None
+    assert inbox.event_type == WorkflowEventType.ACTIVITY_CANCELLED
+    assert inbox.source_type == "activity" and inbox.source_key == activity.activity_key
+    assert inbox.occurred_at == FROZEN_NOW
+    assert inbox.payload == {
+        "activity_key": activity.activity_key,
+        "activity_run_id": str(activity.pk),
+        "message": "cooperative cancellation",
+    }
+
+    registry = WorkflowRegistry()
+    registry.register(DrainingAdapterWorkflow())
+    dispatcher = DjangoWorkflowDispatcher(registry, DjangoExecutionStore())
+    result = dispatcher.dispatch_once(now=FROZEN_NOW)
+    assert result is not None and result.success
+    inbox.refresh_from_db()
+    run.refresh_from_db()
+    assert inbox.status == InboxStatus.PROCESSED and inbox.processed_at == FROZEN_NOW
+    assert run.status == WorkflowStatus.CANCELLED
+    assert run.last_event_sequence == event_sequence + 1
+    assert dispatcher.dispatch_once(now=FROZEN_NOW) is None
+    assert WorkflowInboxEvent.objects.filter(workflow_run=run).count() == 1
 
 
 # ---------------------------------------------------------------------------

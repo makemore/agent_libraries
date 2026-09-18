@@ -16,12 +16,12 @@ from typing import TYPE_CHECKING
 from ace import RetryPolicy, WorkflowEngine, WorkflowEvent, WorkflowEventType, WorkflowStatus
 from ace.codec import serialize_commands
 from django.db import transaction
+from django.db.models import OuterRef, Q, Subquery
 from django.utils import timezone
 
 from ace_django.exceptions import DispatcherError, TransitionFailure, WorkflowBlocked
 from ace_django.inbox import (
     discard_remaining_inbox,
-    get_next_pending_inbox,
     mark_dead_letter,
     mark_discarded,
     mark_processed,
@@ -43,6 +43,9 @@ if TYPE_CHECKING:
     from ace_django.store import DjangoExecutionStore
 
 logger = logging.getLogger(__name__)
+
+_DISPATCHABLE_INBOX_STATUSES = (InboxStatus.PENDING, InboxStatus.RETRYING)
+_UNRESOLVED_INBOX_STATUSES = (*_DISPATCHABLE_INBOX_STATUSES, InboxStatus.DEAD_LETTER)
 
 # Default retry configuration
 DEFAULT_MAX_ATTEMPTS = 5
@@ -114,9 +117,17 @@ class DjangoWorkflowDispatcher:
         skipped entirely: their events stay PENDING without spending recovery
         budget, and other runs are not starved.
         """
-        from django.db.models import Q
-
-        # Find runs with pending events that are available now
+        # Select each run's unresolved head before applying eligibility filters.
+        # A delayed retry or dead letter must not expose a later event that will
+        # repeatedly fail the locked sequence check and starve other runs.
+        head_sequence = (
+            WorkflowInboxEvent.objects.filter(
+                workflow_run_id=OuterRef("workflow_run_id"),
+                status__in=_UNRESOLVED_INBOX_STATUSES,
+            )
+            .order_by("inbox_sequence")
+            .values("inbox_sequence")[:1]
+        )
         available_filter = Q(available_at__isnull=True) | Q(available_at__lte=now)
 
         # Version routing: only dispatch runs with a registered definition.
@@ -129,7 +140,8 @@ class DjangoWorkflowDispatcher:
 
         return (
             WorkflowInboxEvent.objects.filter(
-                status__in=(InboxStatus.PENDING, InboxStatus.RETRYING),
+                inbox_sequence=Subquery(head_sequence),
+                status__in=_DISPATCHABLE_INBOX_STATUSES,
             )
             .filter(available_filter)
             .filter(supported_filter)
@@ -155,14 +167,26 @@ class DjangoWorkflowDispatcher:
             # Lock the workflow run first (global lock order)
             run = WorkflowRun.objects.select_for_update().get(pk=candidate.workflow_run_id)
 
+            # Candidate queries are only hints. Re-read the inbox under lock
+            # before any mutation, including terminal-run cleanup: another
+            # dispatcher may already have processed or rescheduled this event.
+            inbox = WorkflowInboxEvent.objects.select_for_update().get(pk=candidate.pk)
+            if inbox.status not in _DISPATCHABLE_INBOX_STATUSES:
+                return DispatchResult(
+                    run_id=str(run.pk),
+                    inbox_sequence=inbox.inbox_sequence,
+                    success=False,
+                    error="Event is no longer pending or retrying",
+                )
+
             # Re-check run status under lock
             status = WorkflowStatus(run.status)
             if status.is_terminal:
-                mark_discarded(candidate, reason=f"Workflow is {status.value}", now=now)
+                mark_discarded(inbox, reason=f"Workflow is {status.value}", now=now)
                 discard_remaining_inbox(run, f"Workflow is {status.value}", now)
                 return DispatchResult(
                     run_id=str(run.pk),
-                    inbox_sequence=candidate.inbox_sequence,
+                    inbox_sequence=inbox.inbox_sequence,
                     success=False,
                     discarded=True,
                 )
@@ -170,14 +194,19 @@ class DjangoWorkflowDispatcher:
             if status == WorkflowStatus.BLOCKED:
                 return DispatchResult(
                     run_id=str(run.pk),
-                    inbox_sequence=candidate.inbox_sequence,
+                    inbox_sequence=inbox.inbox_sequence,
                     success=False,
                     blocked=True,
                     error="Workflow is blocked",
                 )
 
-            # Lock inbox event
-            inbox = WorkflowInboxEvent.objects.select_for_update().get(pk=candidate.pk)
+            if inbox.available_at is not None and inbox.available_at > now:
+                return DispatchResult(
+                    run_id=str(run.pk),
+                    inbox_sequence=inbox.inbox_sequence,
+                    success=False,
+                    error="Event is not yet available",
+                )
 
             # Verify this is the next expected sequence (no overtaking)
             if inbox.inbox_sequence != self._get_next_inbox_sequence(run):
@@ -412,6 +441,17 @@ class DjangoWorkflowDispatcher:
         )
 
     def _get_next_inbox_sequence(self, run: WorkflowRun) -> int:
-        """Get the sequence of the next inbox event to process."""
-        next_inbox = get_next_pending_inbox(run)
-        return next_inbox.inbox_sequence if next_inbox else -1
+        """Get the earliest unresolved sequence, including dead-letter barriers."""
+        status = WorkflowStatus(run.status)
+        if status.is_terminal or status == WorkflowStatus.BLOCKED:
+            return -1
+        next_sequence = (
+            WorkflowInboxEvent.objects.filter(
+                workflow_run=run,
+                status__in=_UNRESOLVED_INBOX_STATUSES,
+            )
+            .order_by("inbox_sequence")
+            .values_list("inbox_sequence", flat=True)
+            .first()
+        )
+        return next_sequence if next_sequence is not None else -1

@@ -39,6 +39,20 @@ def claim_activity(
     connections.close_all()
 
 
+def hold_activity_claim(output, release) -> None:
+    """Keep one default-queue claim uncommitted to inspect its actual lock scope."""
+    from django.db import transaction
+
+    connections.close_all()
+    try:
+        with transaction.atomic():
+            lease = DjangoActivityQueue().claim("held-claim", now=FROZEN_NOW)
+            output.put(lease)
+            assert release.wait(timeout=20), "Parent did not release the test claim"
+    finally:
+        connections.close_all()
+
+
 def start_idempotent_workflow(
     barrier,
     output,

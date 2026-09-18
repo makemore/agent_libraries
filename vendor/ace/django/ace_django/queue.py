@@ -230,15 +230,22 @@ class DjangoActivityQueue:
         else:
             candidates = candidates.select_for_update(of=("self",))
 
-        # Check per-activity constraints (partition concurrency)
-        for activity in candidates:
+        # QuerySet iteration eagerly locks the entire result set before Python
+        # can return its first item. Limit each lock query to one candidate so
+        # concurrent workers can still claim unrelated ready activities.
+        rejected = []
+        while True:
+            activity = candidates.exclude(pk__in=rejected).first()
+            if activity is None:
+                return None
             queue_config = next((c for c in configs if c.name == activity.queue), None)
             if queue_config and self._activity_passes_constraints(
                 activity, queue_config, claimed_at
             ):
                 return activity
-
-        return None
+            # Keep looking after a partition-limited candidate without changing
+            # queue/QoS policy or trying the same locked row repeatedly.
+            rejected.append(activity.pk)
 
     def _get_excluded_queues(
         self,
@@ -566,6 +573,20 @@ class DjangoActivityQueue:
             if group is not None:
                 return
             if workflow is None or workflow.status != WorkflowStatus.CANCELLING:
+                return
+            if self._use_inbox:
+                enqueue_locked(
+                    workflow,
+                    source_type="activity",
+                    source_key=activity.activity_key,
+                    event_type=WorkflowEventType.ACTIVITY_CANCELLED,
+                    payload={
+                        "activity_key": activity.activity_key,
+                        "activity_run_id": str(activity.id),
+                        "message": message,
+                    },
+                    occurred_at=cancelled_at,
+                )
                 return
             engine = self._engine_for(activity)
             if engine is not None:
