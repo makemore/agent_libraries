@@ -1,0 +1,129 @@
+# Fragment: root defines edge and owns the merged Compose/systemd lifecycle.
+services:
+  grafana:
+    image: "${images.grafana}"
+    user: "472:0"
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    networks: [edge, observability-private]
+    env_file:
+      - path: /run/business-tools/grafana.env
+        format: raw
+        required: true
+    environment:
+      GF_SERVER_DOMAIN: "${domains.metrics}"
+      GF_SERVER_ROOT_URL: "https://${domains.metrics}/"
+      GF_AUTH_ANONYMOUS_ENABLED: "false"
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_SECURITY_COOKIE_SECURE: "true"
+      GF_LOG_MODE: console
+    volumes:
+      - type: bind
+        source: /srv/business-tools/observability/grafana
+        target: /var/lib/grafana
+        bind:
+          create_host_path: false
+      - type: bind
+        source: /opt/business-tools/observability/provisioning/datasources/prometheus.yaml
+        target: /etc/grafana/provisioning/datasources/prometheus.yaml
+        read_only: true
+        bind:
+          create_host_path: false
+    healthcheck:
+      test: [CMD, curl, --fail, --silent, --output, /dev/null, http://127.0.0.1:3000/api/health]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    logging:
+      driver: local
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  prometheus:
+    image: "${images.prometheus}"
+    # Explicit numeric nobody identity makes bind ownership deterministic.
+    user: "65534:65534"
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    networks: [observability-private]
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --storage.tsdb.retention.time=15d
+      - --storage.tsdb.retention.size=5GB
+    volumes:
+      - type: bind
+        source: /srv/business-tools/observability/prometheus
+        target: /prometheus
+        bind:
+          create_host_path: false
+      - type: bind
+        source: /opt/business-tools/observability/prometheus.yml
+        target: /etc/prometheus/prometheus.yml
+        read_only: true
+        bind:
+          create_host_path: false
+    healthcheck:
+      test: [CMD, wget, -q, --spider, http://127.0.0.1:9090/-/ready]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    logging:
+      driver: local
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  node-exporter:
+    image: "${images.node_exporter}"
+    user: "65534:65534"
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    networks: [observability-private]
+    command:
+      - --path.procfs=/host/proc
+      - --path.sysfs=/host/sys
+      # Deliberately limited host view: no /, host namespaces or privileges.
+      # In bridge mode network metrics describe the container, not the host.
+      - --collector.disable-defaults
+      - --collector.cpu
+      - --collector.cpufreq
+      - --collector.diskstats
+      - --collector.loadavg
+      - --collector.meminfo
+      - --collector.pressure
+      - --collector.stat
+      - --collector.time
+      - --collector.vmstat
+    volumes:
+      - type: bind
+        source: /proc
+        target: /host/proc
+        read_only: true
+        bind:
+          create_host_path: false
+      - type: bind
+        source: /sys
+        target: /host/sys
+        read_only: true
+        bind:
+          create_host_path: false
+    healthcheck:
+      test: [CMD, wget, -q, --spider, http://127.0.0.1:9100/metrics]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    logging:
+      driver: local
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+networks:
+  observability-private:
+    internal: true

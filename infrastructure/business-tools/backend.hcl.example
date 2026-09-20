@@ -1,0 +1,5 @@
+# Existing, access-reviewed state bucket; this module does not create it.
+# Copy to backend.hcl and use init -backend-config=backend.hcl.
+# Never share ai-gateway, raise-crm or Studio's state prefix.
+bucket = "makemoredigital2025-tfstate"
+prefix = "business-tools/state"

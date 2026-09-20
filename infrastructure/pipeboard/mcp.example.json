@@ -1,0 +1,6 @@
+{
+  "mcpServers": {
+    "pipeboard-google-ads": { "type": "http", "url": "https://google-ads.mcp.pipeboard.co/" },
+    "pipeboard-meta-ads": { "type": "http", "url": "https://meta-ads.mcp.pipeboard.co/" }
+  }
+}

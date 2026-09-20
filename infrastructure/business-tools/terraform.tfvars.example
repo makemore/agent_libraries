@@ -1,0 +1,32 @@
+# Copy to terraform.tfvars. Never put credentials or bootstrap JSON here.
+project_id = "makemoredigital2025"
+
+# DEPLOYMENT GATE: these are deliberately INVALID digest placeholders, not hashes.
+# Verify each release, architecture and registry digest before replacing them.
+# No image is fetched or verified by Terraform. Never copy test-only digests here.
+images = {
+  postiz        = "ghcr.io/gitroomhq/postiz-app@sha256:REPLACE_WITH_VERIFIED_DIGEST"
+  postgres      = "postgres@sha256:REPLACE_WITH_VERIFIED_DIGEST"
+  redis         = "redis@sha256:REPLACE_WITH_VERIFIED_DIGEST"
+  temporal      = "temporalio/auto-setup@sha256:REPLACE_WITH_VERIFIED_DIGEST"
+  mautic        = "mautic/mautic@sha256:REPLACE_WITH_VERIFIED_DIGEST"
+  mariadb       = "mariadb@sha256:REPLACE_WITH_VERIFIED_DIGEST"
+  actual        = "actualbudget/actual-server@sha256:REPLACE_WITH_VERIFIED_DIGEST"
+  invoice_ninja = "invoiceninja/invoiceninja-debian@sha256:REPLACE_WITH_VERIFIED_DIGEST"
+  grafana       = "grafana/grafana@sha256:REPLACE_WITH_VERIFIED_DIGEST"
+  prometheus    = "prom/prometheus@sha256:REPLACE_WITH_VERIFIED_DIGEST"
+  node_exporter = "prom/node-exporter@sha256:REPLACE_WITH_VERIFIED_DIGEST"
+  caddy         = "caddy@sha256:REPLACE_WITH_VERIFIED_DIGEST"
+
+  # Current app templates require these separate release pins as well.
+  invoice_nginx     = "nginx@sha256:REPLACE_WITH_VERIFIED_DIGEST"
+  temporal_postgres = "postgres@sha256:REPLACE_WITH_VERIFIED_DIGEST"
+}
+
+# Region, zone, machine/disk sizes, domains and the CLOSED public gate inherit
+# supported defaults. Initialize all applications through IAP/loopback first.
+# Only then deliberately enable public_enabled and explicitly rerun startup.
+# Add any extra image keys required by the application templates, also pinned.
+# DNS remains external and no operator grants are made unless explicitly set:
+# dns_managed_zone = "existing-zone-name"
+# operator_members = ["user:operator@example.com"]

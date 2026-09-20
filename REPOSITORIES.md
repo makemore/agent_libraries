@@ -44,8 +44,14 @@ The Studio host (`products/studio`) and reusable Django application
 (`packages/python/django_agent_studio`) have distinct ownership.
 
 Root-owned material includes coordinator scripts, plans, assets, shared tests
-and fixtures, skills, and **`vendor/ace`**. Vendored ACE is not a submodule;
-`docs` is. Product changes belong in their owning child repositories.
+and fixtures, skills, **`infrastructure/ai-gateway`** (Bifrost deployment configuration),
+**`infrastructure/business-tools`** (shared business-app deployment configuration),
+**`infrastructure/pipeboard`** (hosted ads-management setup), and **`vendor/ace`**.
+**`infrastructure/raise-crm`** is the separately operated CRM source copied into
+this root repository, not a submodule or shared-host service. These infrastructure
+folders and vendored ACE are not submodules; `docs` is. Other product changes
+belong in their owning child repositories. `infrastructure/agentic-social` is only
+a README redirect to the shared Postiz deployment.
 
 ## Working with pins safely
 

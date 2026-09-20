@@ -1,0 +1,19 @@
+[Unit]
+Description=Cold local backup of all business-tools state (planned downtime)
+Requires=docker.service
+After=docker.service
+RequiresMountsFor=/srv/business-tools
+# No Requires/Conflicts/After on business-tools.service: the script must be able
+# to synchronously stop/start it without a systemd ordering cycle.
+
+[Service]
+Type=oneshot
+UMask=0077
+ExecStartPre=/usr/bin/mountpoint --quiet /srv/business-tools
+ExecStart=/bin/bash /opt/business-tools/backup.sh
+# Includes a potentially hour-long graceful stop plus full-disk compression.
+TimeoutStartSec=infinity
+TimeoutStopSec=4500
+KillMode=mixed
+StandardOutput=null
+StandardError=null

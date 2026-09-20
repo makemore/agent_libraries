@@ -1,0 +1,163 @@
+# Fragment: root defines edge and owns the merged Compose/systemd lifecycle.
+services:
+  invoice-ninja:
+    image: "${images.invoice_nginx}"
+    networks: [edge, invoice-private]
+    volumes:
+      - type: bind
+        source: /opt/business-tools/invoice-ninja/nginx.conf
+        target: /etc/nginx/conf.d/default.conf
+        read_only: true
+        bind:
+          create_host_path: false
+      - type: bind
+        source: /srv/business-tools/invoice-ninja/public
+        target: /var/www/html/public
+        read_only: true
+        bind:
+          create_host_path: false
+      - type: bind
+        source: /srv/business-tools/invoice-ninja/storage
+        target: /var/www/html/storage
+        read_only: true
+        bind:
+          create_host_path: false
+    depends_on:
+      invoice-app:
+        condition: service_healthy
+    healthcheck:
+      test: [CMD, wget, -q, --spider, http://127.0.0.1/health]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    logging:
+      driver: local
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  invoice-app:
+    image: "${images.invoice_ninja}"
+    # Keep the image entrypoint and Supervisor: FPM, two workers, scheduler.
+    # FPM must not join edge. A separate bridge permits SMTP/payment egress.
+    networks:
+      invoice-private: {}
+      invoice-egress: {}
+      invoice-render:
+        ipv4_address: 172.30.252.3
+    env_file:
+      - path: /run/business-tools/invoice-ninja.env
+        format: raw
+        required: true
+    environment:
+      APP_ENV: production
+      APP_DEBUG: "false"
+      LOG_CHANNEL: stderr
+      APP_URL: "https://${domains.invoices}"
+      REQUIRE_HTTPS: "true"
+      # Use the bundled browser, not a hosted invoice-rendering service.
+      PDF_GENERATOR: snappdf
+      DB_HOST: invoice-db
+      DB_PORT: "3306"
+      DB_DATABASE: invoiceninja
+      DB_USERNAME: invoiceninja
+      # Upstream Debian Compose loads these from debian/.env, not the image.
+      # Preserve that deployment contract; only adapt the Redis service name.
+      QUEUE_CONNECTION: redis
+      CACHE_DRIVER: redis
+      SESSION_DRIVER: redis
+      REDIS_HOST: invoice-redis
+    volumes:
+      - type: bind
+        source: /srv/business-tools/invoice-ninja/public
+        target: /var/www/html/public
+        bind:
+          create_host_path: false
+      - type: bind
+        source: /srv/business-tools/invoice-ninja/storage
+        target: /var/www/html/storage
+        bind:
+          create_host_path: false
+    depends_on:
+      invoice-db:
+        condition: service_healthy
+      invoice-redis:
+        condition: service_healthy
+    # Inherit the official image's FastCGI /health probe.
+    healthcheck:
+      start_period: 180s
+      interval: 30s
+      timeout: 10s
+      retries: 10
+    # Upstream worker stopwaitsecs is 3600; root must allow graceful shutdown.
+    stop_grace_period: 1h
+    logging:
+      driver: local
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  invoice-db:
+    image: "${images.mariadb}"
+    networks: [invoice-private]
+    env_file:
+      - path: /run/business-tools/invoice-db.env
+        format: raw
+        required: true
+    environment:
+      MARIADB_DATABASE: invoiceninja
+      MARIADB_USER: invoiceninja
+    volumes:
+      - type: bind
+        source: /srv/business-tools/invoice-ninja/mysql
+        target: /var/lib/mysql
+        bind:
+          create_host_path: false
+    healthcheck:
+      test: [CMD, healthcheck.sh, --connect, --innodb_initialized]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 60s
+    stop_grace_period: 90s
+    logging:
+      driver: local
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  invoice-redis:
+    image: "${images.redis}"
+    # Dedicated, passwordless upstream Redis; never join edge or publish ports.
+    networks: [invoice-private]
+    volumes:
+      - type: bind
+        source: /srv/business-tools/invoice-ninja/redis
+        target: /data
+        bind:
+          create_host_path: false
+    healthcheck:
+      test: [CMD-SHELL, "redis-cli ping | grep -qx PONG"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    stop_grace_period: 60s
+    logging:
+      driver: local
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+networks:
+  # Dedicated PHP -> Caddy path for canonical HTTPS assets while public setup
+  # is closed. Caddy's alias resolves APP_URL here; neither DB nor edge joins.
+  invoice-render:
+    internal: true
+    ipam:
+      config:
+        - subnet: 172.30.252.0/29
+  invoice-private:
+    internal: true
+  invoice-egress: {}

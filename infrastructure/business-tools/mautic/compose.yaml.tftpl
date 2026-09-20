@@ -1,0 +1,123 @@
+# Merge with /opt/business-tools/compose.yaml; root owns edge and systemd.
+# Do not override entrypoints: official cron/worker roles wait for installation.
+x-mautic-environment: &mautic-environment
+  MAUTIC_DB_HOST: mautic-mariadb
+  MAUTIC_DB_DATABASE: mautic
+  MAUTIC_DB_USER: mautic
+  MAUTIC_SITE_URL: "https://${domains.marketing}"
+
+x-mautic-app: &mautic-app
+  image: "${images.mautic}"
+  env_file:
+    - path: /run/business-tools/mautic.env
+      format: raw
+  volumes:
+    # Cover each image-declared VOLUME exactly; no anonymous child volumes.
+    - type: bind
+      source: /srv/business-tools/mautic/config
+      target: /var/www/html/config
+      bind:
+        create_host_path: false
+    - type: bind
+      source: /srv/business-tools/mautic/logs
+      target: /var/www/html/var/logs
+      bind:
+        create_host_path: false
+    - type: bind
+      source: /srv/business-tools/mautic/media/files
+      target: /var/www/html/docroot/media/files
+      bind:
+        create_host_path: false
+    - type: bind
+      source: /srv/business-tools/mautic/media/images
+      target: /var/www/html/docroot/media/images
+      bind:
+        create_host_path: false
+  stop_grace_period: 60s
+
+services:
+  mautic:
+    <<: *mautic-app
+    environment:
+      <<: *mautic-environment
+      DOCKER_MAUTIC_ROLE: mautic_web
+    expose: ["80"]
+    networks:
+      edge: {}
+      mautic-private: {}
+      mautic-proxy:
+        ipv4_address: 172.30.251.3
+        aliases: [mautic-web]
+    depends_on:
+      mautic-mariadb:
+        condition: service_healthy
+    healthcheck:
+      # Installer redirects are healthy enough to start waiting cron/worker roles.
+      # This is not an installation-complete or public-activation check.
+      test: ["CMD", "curl", "--fail", "--silent", "--output", "/dev/null", "--max-time", "5", "http://localhost/"]
+      interval: 15s
+      timeout: 10s
+      retries: 20
+      start_period: 60s
+
+  mautic-cron:
+    <<: *mautic-app
+    environment:
+      <<: *mautic-environment
+      DOCKER_MAUTIC_ROLE: mautic_cron
+    networks: [mautic-private, mautic-egress]
+    depends_on:
+      mautic:
+        condition: service_healthy
+
+  mautic-worker:
+    <<: *mautic-app
+    # Upstream defaults to sync://; consuming it is invalid. Enable only after
+    # the operator configures async transports (README), never as a demo override.
+    profiles: [mautic-workers]
+    environment:
+      <<: *mautic-environment
+      DOCKER_MAUTIC_ROLE: mautic_worker
+    networks: [mautic-private, mautic-egress]
+    depends_on:
+      mautic:
+        condition: service_healthy
+
+  mautic-mariadb:
+    image: "${images.mariadb}"
+    env_file:
+      - path: /run/business-tools/mautic-db.env
+        format: raw
+    environment:
+      MARIADB_DATABASE: mautic
+      MARIADB_USER: mautic
+    networks: [mautic-private]
+    volumes:
+      - type: bind
+        source: /srv/business-tools/mautic/mariadb
+        target: /var/lib/mysql
+        bind:
+          create_host_path: false
+    healthcheck:
+      # Uses the image-managed healthcheck credential file, not password argv.
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 60s
+    stop_grace_period: 90s
+
+networks:
+  # Only Caddy and web join this bridge. First-install PHP config trusts .2,
+  # never edge peers. Check these reserved ranges against host/VPC/VPN routes.
+  mautic-proxy:
+    driver: bridge
+    internal: true
+    ipam:
+      config:
+        - subnet: 172.30.251.0/29
+  mautic-private:
+    driver: bridge
+    internal: true
+  mautic-egress:
+    driver: bridge

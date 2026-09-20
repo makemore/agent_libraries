@@ -1,0 +1,23 @@
+.terraform/
+*.tfstate*
+tfstate*
+*.tfplan
+*.tfvars
+*.auto.tfvars
+*.tfvars.json
+*.auto.tfvars.json
+backend.hcl
+crash.log
+crash.*.log
+.env
+.env.*
+*.pem
+*.key
+bootstrap*.json
+secrets*.json
+__pycache__/
+*.py[cod]
+
+# Keep reproducible provider selections and non-secret examples versioned.
+!.terraform.lock.hcl
+!*.example

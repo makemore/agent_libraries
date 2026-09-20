@@ -1,0 +1,12 @@
+[Unit]
+Description=Daily business-tools cold backup (all apps offline during backup)
+
+[Timer]
+OnCalendar=*-*-* 03:00:00 UTC
+RandomizedDelaySec=15m
+# Do not trigger unexpected catch-up downtime immediately after VM boot.
+Persistent=false
+Unit=business-tools-backup.service
+
+[Install]
+WantedBy=timers.target

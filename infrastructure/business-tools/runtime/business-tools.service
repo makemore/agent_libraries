@@ -1,0 +1,36 @@
+[Unit]
+Description=Business tools (all applications, databases, ingress and metrics)
+Wants=network-online.target
+Requires=docker.service
+After=network-online.target docker.service
+RequiresMountsFor=/srv/business-tools
+StartLimitIntervalSec=0
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/business-tools
+RuntimeDirectory=business-tools
+RuntimeDirectoryMode=0700
+# Keep root-only env files for the cold backup after stopping; /run is tmpfs.
+RuntimeDirectoryPreserve=yes
+UMask=0077
+ExecStartPre=/usr/bin/mountpoint --quiet /srv/business-tools
+ExecStartPre=/usr/bin/python3 /opt/business-tools/prepare-disk.py --check
+ExecStartPre=/usr/bin/flock --shared --nonblock --no-fork /run/business-tools-data.lock /usr/bin/python3 /opt/business-tools/prepare-mautic.py --check
+ExecStartPre=/bin/bash /opt/business-tools/bootstrap.sh --metadata-firewall
+ExecStartPre=/usr/bin/flock --shared --nonblock --no-fork /run/business-tools-data.lock /usr/bin/python3 /opt/business-tools/fetch-secrets.py
+# Shared lock lasts for the foreground Compose process. Maintenance takes the
+# exclusive lock only AFTER systemctl stop; never hold it across systemctl start.
+ExecStart=/usr/bin/flock --shared --nonblock --no-fork /run/business-tools-data.lock /opt/business-tools/compose.sh up --remove-orphans --abort-on-container-exit
+ExecStop=/opt/business-tools/compose.sh down --remove-orphans
+Restart=always
+RestartSec=30
+TimeoutStartSec=180
+# Invoice workers can take 3600s, followed by dependency/database shutdown.
+TimeoutStopSec=4200
+# Upstream initialization may print credentials. NEVER stream Compose to journal.
+StandardOutput=null
+StandardError=null
+
+[Install]
+WantedBy=multi-user.target

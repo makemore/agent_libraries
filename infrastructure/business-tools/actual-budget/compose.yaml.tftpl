@@ -1,0 +1,26 @@
+# Fragment: root defines edge and owns the merged Compose/systemd lifecycle.
+services:
+  actual:
+    image: "${images.actual}"
+    # The 26.9 Debian image creates this account but does not select USER.
+    user: "1001:1001"
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    networks: [edge]
+    volumes:
+      - type: bind
+        source: /srv/business-tools/actual-budget/data
+        target: /data
+        bind:
+          create_host_path: false
+    healthcheck:
+      test: [CMD, node, scripts/health-check.js]
+      interval: 60s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+    logging:
+      driver: local
+      options:
+        max-size: "10m"
+        max-file: "3"

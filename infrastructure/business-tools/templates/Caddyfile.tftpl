@@ -1,0 +1,50 @@
+{
+    admin off
+    log {
+        format filter {
+            wrap json
+            fields {
+                request>headers delete
+                request>uri delete
+            }
+        }
+    }
+}
+
+# No access logs: OAuth codes, cookies and finance content are sensitive.
+(headers) {
+    header {
+        -Server
+        X-Content-Type-Options nosniff
+        Strict-Transport-Security "max-age=31536000"
+    }
+}
+
+%{ for name, upstream in { social = "postiz:5000", marketing = "mautic-web:80", budget = "actual:5006", invoices = "invoice-ninja:80", metrics = "grafana:3000" } ~}
+https://${domains[name]} {
+    import headers
+%{ if public_enabled ~}
+    reverse_proxy ${upstream}
+%{ else ~}
+%{ if name == "invoices" ~}
+    # Exact transport peer, NOT X-Forwarded-For/client_ip. Only Invoice PHP
+    # owns this address on invoice-render; no public/header-based bypass.
+    @renderer remote_ip 172.30.252.3
+    handle @renderer {
+        reverse_proxy ${upstream}
+    }
+%{ endif ~}
+    handle {
+        respond "Private initialization in progress" 503
+    }
+%{ endif ~}
+}
+
+# Same hostname/certificate; map local port 443 to the VM's loopback 8443 via
+# IAP SSH for canonical HTTPS origins and secure cookies during installation.
+https://${domains[name]}:8443 {
+    import headers
+    reverse_proxy ${upstream}
+}
+
+%{ endfor ~}

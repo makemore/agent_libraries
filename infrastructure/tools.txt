@@ -1,0 +1,57 @@
+Original platform research / future backlog (not the deployed folder inventory)
+Current choices: Mautic, Actual Budget, Invoice Ninja and Grafana/Prometheus live
+under infrastructure/business-tools beside Postiz. Paid ads use hosted Pipeboard.
+See infrastructure/AGENTS.md for authoritative paths and operating boundaries.
+The proposed paths/priorities below are historical; review current licences and
+hosting costs rather than assuming every candidate is unrestricted open source.
+
+Next 10 platforms for infrastructure/
+Original shortlist covering gaps across the business stack:
+#
+Platform
+Folder
+Fills
+1
+Plausible Analytics
+infrastructure/analytics
+Web analytics (GA replacement) — lightweight, privacy-first, already Docker-ready
+2
+Cal.com
+infrastructure/scheduling
+Booking / scheduling — replaces Calendly, integrates with CRM
+3
+Mautic
+infrastructure/email-marketing
+Email campaigns, drip sequences, lead scoring — connects Postiz social → email funnel
+4
+GnuCash / Actual Budget
+infrastructure/financials
+Self-hosted personal/business budgeting; Actual is the modern pick
+5
+Invoice Ninja
+infrastructure/invoicing
+Invoicing, quotes, expenses, client portal — pairs with financials
+6
+Matomo
+infrastructure/ad-analytics
+Advertising attribution, conversion funnels, heatmaps — complements Plausible
+7
+n8n
+infrastructure/automation
+Workflow automation hub — connects Postiz, CRM, email, Slack, webhooks; Zapier replacement
+8
+Chatwoot
+infrastructure/support
+Omnichannel customer support (email, chat, social DMs) — closes the social → support loop
+9
+Grafana + Prometheus
+infrastructure/observability
+Dashboards across all your running infrastructure, costs, uptime
+10
+Directus
+infrastructure/content
+Headless CMS / data API — content ops for blog/landing pages fed by Postiz campaigns
+My top priority picks for your situation:
+n8n first — it becomes the glue connecting everything else (Postiz → CRM → email → social)
+Cal.com second — booking is a direct revenue touchpoint
+Invoice Ninja — financials/invoicing is explicitly on your list and it’s production-ready as a self-hosted app

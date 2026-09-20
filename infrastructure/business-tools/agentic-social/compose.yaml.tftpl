@@ -1,0 +1,149 @@
+# Merge with /opt/business-tools/compose.yaml; root defines the non-external edge.
+# systemd owns restarts, disk/secret gating and --abort-on-container-exit.
+services:
+  postiz:
+    image: "${images.postiz}"
+    # Preserve upstream root initialization, nginx and bundled PM2 processes.
+    env_file:
+      - path: /run/business-tools/postiz.env
+        format: raw
+    environment:
+      MAIN_URL: "https://${domains.social}"
+      FRONTEND_URL: "https://${domains.social}"
+      NEXT_PUBLIC_BACKEND_URL: "https://${domains.social}/api"
+      BACKEND_INTERNAL_URL: "http://localhost:3000"
+      REDIS_URL: "redis://postiz-redis:6379"
+      TEMPORAL_ADDRESS: "postiz-temporal:7233"
+      IS_GENERAL: "true"
+      RUN_CRON: "true"
+      # Security requirement, NOT a bootstrap readiness gate: first signup is allowed.
+      # Also disables OIDC sign-in. See README before changing this policy.
+      DISABLE_REGISTRATION: "true"
+      UPLOAD_DIRECTORY: /uploads
+      NEXT_PUBLIC_UPLOAD_DIRECTORY: /uploads
+    expose: ["5000"]
+    networks: [edge, postiz-private]
+    volumes:
+      - type: bind
+        source: /srv/business-tools/postiz/config
+        target: /config
+        bind:
+          create_host_path: false
+      - type: bind
+        source: /srv/business-tools/postiz/uploads
+        target: /uploads
+        bind:
+          create_host_path: false
+    depends_on:
+      postiz-postgres:
+        condition: service_healthy
+      postiz-redis:
+        condition: service_healthy
+      postiz-temporal:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "node", "-e", "const r=require('http').get('http://localhost:5000/',s=>process.exit(s.statusCode<500?0:1));r.on('error',()=>process.exit(1));r.setTimeout(4000,()=>{r.destroy();process.exit(1)})"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 120s
+    stop_grace_period: 60s
+
+  postiz-postgres:
+    image: "${images.postgres}"
+    env_file:
+      - path: /run/business-tools/postiz-db.env
+        format: raw
+    environment:
+      POSTGRES_USER: postiz
+      POSTGRES_DB: postiz
+    networks: [postiz-private]
+    volumes:
+      - type: bind
+        source: /srv/business-tools/postiz/postgres
+        target: /var/lib/postgresql/data
+        bind:
+          create_host_path: false
+    healthcheck:
+      test: ["CMD", "pg_isready", "-h", "127.0.0.1", "-U", "postiz", "-d", "postiz"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    stop_grace_period: 90s
+
+  postiz-redis:
+    image: "${images.redis}"
+    networks: [postiz-private]
+    volumes:
+      - type: bind
+        source: /srv/business-tools/postiz/redis
+        target: /data
+        bind:
+          create_host_path: false
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli ping | grep -qx PONG"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    stop_grace_period: 60s
+
+  postiz-temporal-postgres:
+    image: "${images.temporal_postgres}"
+    env_file:
+      - path: /run/business-tools/temporal-db.env
+        format: raw
+    environment:
+      POSTGRES_USER: temporal
+      POSTGRES_DB: temporal
+    networks: [postiz-temporal-db]
+    volumes:
+      - type: bind
+        source: /srv/business-tools/postiz/temporal-postgres
+        target: /var/lib/postgresql/data
+        bind:
+          create_host_path: false
+    healthcheck:
+      test: ["CMD", "pg_isready", "-h", "127.0.0.1", "-U", "temporal", "-d", "temporal"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    stop_grace_period: 90s
+
+  postiz-temporal:
+    image: "${images.temporal}"
+    # auto-setup initializes both SQL schemas then execs the long-lived server.
+    env_file:
+      - path: /run/business-tools/temporal.env
+        format: raw
+    environment:
+      DB: postgres12
+      DB_PORT: "5432"
+      POSTGRES_USER: temporal
+      POSTGRES_SEEDS: postiz-temporal-postgres
+      TEMPORAL_ADDRESS: "postiz-temporal:7233"
+      # This multihomed server must listen on both private interfaces.
+      BIND_ON_IP: "0.0.0.0"
+      # ENABLE_ES is omitted: upstream defaults to PostgreSQL visibility.
+    networks: [postiz-private, postiz-temporal-db]
+    depends_on:
+      postiz-temporal-postgres:
+        condition: service_healthy
+    healthcheck:
+      # Namespace creation runs in the background; cluster health alone races it.
+      test: ["CMD-SHELL", "temporal operator cluster health --address postiz-temporal:7233 >/dev/null 2>&1 && temporal operator namespace describe --address postiz-temporal:7233 --namespace default >/dev/null 2>&1"]
+      interval: 10s
+      timeout: 10s
+      retries: 30
+      start_period: 60s
+    stop_grace_period: 60s
+
+networks:
+  postiz-private:
+    driver: bridge
+    internal: true
+  postiz-temporal-db:
+    driver: bridge
+    internal: true

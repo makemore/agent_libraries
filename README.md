@@ -3,12 +3,21 @@
 A thin coordinator for **23 Git submodules**: reusable Python packages,
 products, clients, infrastructure, templates, archived code and documentation.
 Each child repository owns its source and history; the root owns workspace
-tooling and shared collateral, not product code.
+tooling, shared collateral and the infrastructure sources described below.
 
 [`.gitmodules`](.gitmodules) is the authoritative path/remote inventory; Git
 gitlinks pin exact child commits. **Pinned does not mean the full suite or
 cross-product compatibility has been validated.** See
 [REPOSITORIES.md](REPOSITORIES.md) for the complete layout and ownership.
+
+The root-owned [AI gateway deployment](infrastructure/ai-gateway/README.md)
+contains OpenTofu configuration for Bifrost at `llms.makemoredigital.com`.
+The separate [business-tools deployment](infrastructure/business-tools/README.md)
+groups Postiz, Mautic, Actual Budget, Invoice Ninja and Grafana/Prometheus on one
+shared VM; it does not combine the AI gateway or Raise CRM with that host.
+The copied [Raise CRM source](infrastructure/raise-crm/backend/readme.md) is also
+root-owned but separately operated. [Pipeboard](infrastructure/pipeboard/README.md)
+documents the selected hosted ads-management integration.
 
 ## Get started
 
