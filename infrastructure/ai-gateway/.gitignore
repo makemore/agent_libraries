@@ -1,0 +1,15 @@
+.terraform/
+*.tfstate*
+tfstate*
+*.tfplan
+*.tfvars
+*.auto.tfvars
+*.tfvars.json
+*.auto.tfvars.json
+backend.hcl
+crash.log
+crash.*.log
+
+# Commit provider selections and non-secret example configuration.
+!.terraform.lock.hcl
+!*.example

@@ -1,0 +1,44 @@
+# Separate GFE-only listener. Never import these routes into public 80/443.
+http://:8081 {
+	request_body {
+		max_size 16MB
+	}
+	header {
+		-Server
+		X-Content-Type-Options nosniff
+		Strict-Transport-Security "max-age=31536000"
+	}
+	@health {
+		method GET
+		host ${admin_domain}
+		path /_iap_health
+	}
+	handle @health {
+		respond "ok" 200
+	}
+	@admin host ${admin_domain}
+	handle @admin {
+		route {
+			# Signature, numeric backend audience, expiry, issuer and user allowlist.
+			forward_auth 127.0.0.1:9091 {
+				# Explicitly clear the auth subrequest query: /verify alone inherits
+				# ?from_db=false etc. and violates the verifier's exact target.
+				# This cloned request does not change the query sent to Bifrost.
+				uri /verify?
+				header_up -Authorization
+				header_up -Cookie
+			}
+			reverse_proxy 127.0.0.1:8080 {
+				flush_interval -1
+				header_up -X-Goog-Iap-Jwt-Assertion
+				header_up -X-Goog-Authenticated-User-Email
+				header_up -X-Goog-Authenticated-User-Id
+				header_up X-Forwarded-Proto https
+				# Retain Bifrost's own session/authentication. Never inject admin credentials.
+			}
+		}
+	}
+	handle {
+		respond "Not found" 404
+	}
+}

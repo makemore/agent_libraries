@@ -1,0 +1,14 @@
+# Copy to terraform.tfvars. Keep credentials and bootstrap JSON out of this file.
+project_id = "makemoredigital2025"
+
+# Verified Docker Hub multi-platform digests: Bifrost v2.2.1, Caddy 2.11.2-alpine.
+# Review release security notes and re-run the container smoke test before upgrades.
+bifrost_image = "maximhq/bifrost@sha256:a8942692af7b4b89196cd8fc33653b7353488dfd58b24078fe793b8574a8084b"
+caddy_image   = "caddy@sha256:834468128c7696cec0ceea6172f7d692daf645ae51983ca76e39da54a97c570d"
+
+# Region, zone, machine/disk sizes and domain inherit the supported defaults.
+# DNS remains external unless an existing Cloud DNS managed zone is supplied.
+# dns_managed_zone = "existing-zone-name"
+
+# Optional explicitly named operators; no operator IAM grants are made by default.
+# operator_members = ["user:operator@example.com"]

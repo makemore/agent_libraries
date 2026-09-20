@@ -1,0 +1,54 @@
+# systemd owns restart/mount/secret gating. Never enable Docker restart policies.
+services:
+  bifrost:
+    image: "${bifrost_image}"
+    network_mode: host
+    # Upstream uses uid 1000; keep data ownership independent of host group 0.
+    user: "1000:1000"
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    environment:
+      APP_HOST: "127.0.0.1"
+      APP_PORT: "8080"
+      APP_DIR: /app/data
+      LOG_LEVEL: warn
+      GOMEMLIMIT: 2300MiB
+    env_file: /run/ai-gateway/bootstrap.env
+    volumes:
+      - /srv/ai-gateway/bifrost:/app/data
+    tmpfs:
+      - /tmp:size=64m,mode=1777
+    mem_limit: 2560m
+    pids_limit: 256
+    logging:
+      driver: local
+      options:
+        max-size: "10m"
+        max-file: "3"
+  caddy:
+    image: "${caddy_image}"
+    network_mode: host
+    read_only: true
+    cap_drop: [ALL]
+    cap_add: [NET_BIND_SERVICE]
+    security_opt: [no-new-privileges:true]
+    environment:
+      GATEWAY_DOMAIN: "${domain}"
+    volumes:
+      - /opt/ai-gateway/Caddyfile:/etc/caddy/Caddyfile:ro
+      - /opt/ai-gateway/admin.caddy:/etc/caddy/admin.d/admin.caddy:ro
+      - /srv/ai-gateway/caddy/data:/data
+      - /srv/ai-gateway/caddy/config:/config
+    tmpfs:
+      - /tmp:size=32m,mode=1777
+    mem_limit: 256m
+    pids_limit: 128
+    depends_on:
+      bifrost:
+        condition: service_healthy
+    logging:
+      driver: local
+      options:
+        max-size: "10m"
+        max-file: "3"

@@ -1,0 +1,74 @@
+{
+	admin off
+	# Error logs must not disclose IAP assertions, cookies or sensitive URLs.
+	log {
+		format filter {
+			wrap json
+			fields {
+				request>headers delete
+				request>uri delete
+			}
+		}
+	}
+}
+
+# Empty/unmounted by default; generated only for the explicit browser-admin setup.
+import /etc/caddy/admin.d/*.caddy
+
+(keyed_inference) {
+	# This is a token FORMAT gate, not authentication. Bifrost validates the VK.
+	@virtual_key header_regexp Authorization "^Bearer sk-bf-[A-Za-z0-9_-]+$"
+	handle @virtual_key {
+		reverse_proxy 127.0.0.1:8080 {
+			flush_interval -1
+			header_up -X-Bf-*
+			header_up -Cookie
+			header_up -X-Api-Key
+			header_up -X-Goog-Api-Key
+			header_up -Api-Key
+			header_up -Proxy-Authorization
+		}
+	}
+	handle {
+		respond "Gateway virtual key required" 401
+	}
+}
+
+{$GATEWAY_DOMAIN} {
+	# Deliberately no access logging: client credentials/content must stay private.
+	header {
+		-Server
+		X-Content-Type-Options nosniff
+		Strict-Transport-Security "max-age=31536000"
+	}
+	request_body {
+		max_size 16MB
+	}
+	@health {
+		method GET
+		path /healthz
+	}
+	handle @health {
+		respond "ok" 200
+	}
+	@model_catalog {
+		method GET
+		path /v1/models
+	}
+	handle @model_catalog {
+		# Guard validates the canonical bearer and projects only scoped IDs.
+		# Never proxy this path straight to Bifrost (empty-catalog auth gap).
+		reverse_proxy 127.0.0.1:9092
+	}
+	@inference {
+		method POST
+		path /v1/chat/completions /v1/responses /v1/embeddings /anthropic/v1/messages
+	}
+	handle @inference {
+		import keyed_inference
+	}
+	# Do not expose admin, setup, metrics, MCP, files, batches or stored responses.
+	handle {
+		respond "Not found" 404
+	}
+}

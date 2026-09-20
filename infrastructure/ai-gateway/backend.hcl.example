@@ -1,0 +1,5 @@
+# Copy to backend.hcl and supply it with init -backend-config=backend.hcl.
+# This bucket must already exist and be accessible to the deploying identity.
+# Never use the Studio state prefix for this independent deployment.
+bucket = "makemoredigital2025-tfstate"
+prefix = "ai-gateway/state"
