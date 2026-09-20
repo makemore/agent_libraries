@@ -1,0 +1,1 @@
+"""Administrative host commands; do not expose through MCP or API tools."""

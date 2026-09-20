@@ -1,0 +1,49 @@
+# Cloud Build configuration for running Django migrations
+#
+# Usage:
+#   gcloud builds submit --config cloudmigrate.yaml --project=PROJECT_ID
+#
+# Or use the fabfile:
+#   fab migrate
+
+substitutions:
+  _REGION: europe-west2
+  _DJANGO_SETTINGS_MODULE: raise.settings.cloud_production
+  _CLOUD_SQL_INSTANCE: crimson-305210:europe-west2:kryten
+
+steps:
+  # Build the container image (or use existing)
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'build'
+      - '-t'
+      - 'gcr.io/$PROJECT_ID/migrate'
+      - '.'
+
+  # Run migrations
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'run'
+      - '--rm'
+      - '-e'
+      - 'DJANGO_SETTINGS_MODULE=${_DJANGO_SETTINGS_MODULE}'
+      - 'gcr.io/$PROJECT_ID/migrate'
+      - 'python'
+      - 'manage.py'
+      - 'migrate'
+      - '--noinput'
+
+  # Collect static files
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'run'
+      - '--rm'
+      - '-e'
+      - 'DJANGO_SETTINGS_MODULE=${_DJANGO_SETTINGS_MODULE}'
+      - 'gcr.io/$PROJECT_ID/migrate'
+      - 'python'
+      - 'manage.py'
+      - 'collectstatic'
+      - '--noinput'
+
+timeout: '1800s'
