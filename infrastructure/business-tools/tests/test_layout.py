@@ -1,6 +1,7 @@
 """Source-layout regressions; no tools, cloud, runtime or credential access."""
 
 from pathlib import Path
+import json
 import unittest
 
 
@@ -32,6 +33,18 @@ class LayoutTests(unittest.TestCase):
         self.assertTrue((pipeboard / 'mcp.example.json').is_file())
         self.assertFalse(list(pipeboard.glob('*.tf')))
         self.assertFalse(list(pipeboard.glob('*compose*')))
+
+    def test_public_release_is_image_only_and_explicitly_not_ignored(self):
+        relative = 'releases/2026-09-20.tfvars.json'
+        release = json.loads((ROOT / relative).read_text())
+        self.assertEqual(set(release), {'images'})
+        self.assertEqual(len(release['images']), 14)
+        for image in release['images'].values():
+            self.assertRegex(image, r'^[a-z0-9][A-Za-z0-9._:/-]*@sha256:[a-f0-9]{64}$')
+        ignores = (ROOT / '.gitignore').read_text().splitlines()
+        self.assertIn('!' + relative, ignores)
+        self.assertIn('*.tfvars.json', ignores)
+        self.assertNotIn('!*.tfvars.json', ignores)
 
 
 if __name__ == '__main__':

@@ -88,9 +88,13 @@ services. Set billing alerts; resource limits do not guarantee adequate capacity
 `project_id` and the complete `images` map are required. Every image must be an
 explicit, verified registry reference ending in `@sha256:` plus 64 lowercase hex
 characters. [terraform.tfvars.example](terraform.tfvars.example) deliberately uses
-**invalid placeholders** pending release selection and smoke testing. Terraform
-only checks syntax; it does not pull images or verify provenance/compatibility.
-Never substitute synthetic mock-test hashes or floating tags.
+**invalid placeholders** for general setup. The explicit image-only
+[2026-09-20 release manifest](releases/2026-09-20.tfvars.json) contains registry-verified
+pins tested with local linux/amd64 containers; select it with `-var-file`, never
+as an automatically loaded override. See the [deployment record](DEPLOYMENT.md)
+for evidence and remaining launch gates. Terraform only checks syntax; it does
+not pull images or verify provenance/compatibility. Never substitute synthetic
+mock-test hashes or floating tags.
 
 | Required map key | Image/release contract to verify and pin |
 | --- | --- |
@@ -255,6 +259,57 @@ gcloud --project PROJECT_ID compute ssh business-tools --zone ZONE \
    the plan, then explicitly rerun the metadata startup script as described below.
    Recheck registration/install restrictions and approved end-to-end integrations.
 
+### Protected account setup helpers
+
+The opt-in [private_admin.py](scripts/private_admin.py) supports the five explicit
+`makemoredigital.com` targets for this deployment, using a separately opened IAP
+forward bound to `127.0.0.1:18443` and targeting VM `127.0.0.1:8443`. It changes only
+the TCP destination: HTTPS origin, Host, SNI and certificate validation remain
+canonical on 443. No automatic redirects, public fallback, TLS bypass or disk
+cookies. Default previews make unauthenticated GET requests only:
+
+<augment_code_snippet mode="EXCERPT">
+````sh
+.venv/bin/python -B infrastructure/business-tools/scripts/private_admin.py --app actual
+.venv/bin/python -B infrastructure/business-tools/scripts/private_admin.py --app grafana
+.venv/bin/python -B infrastructure/business-tools/scripts/mautic_first_run.py
+````
+</augment_code_snippet>
+
+After targeted account-creation approval, `--apply --credentials /private/path/admin-access.json`
+enables creation/login verification for Postiz/Actual and verification of the
+bootstrap-created Invoice/Grafana accounts. The JSON file must be an owned private
+regular file in an owned private directory; no symlinks or hardlinks. Existing
+accounts are never password-reset. Grafana's email is changed only from its known
+empty/default bootstrap value, preserving arbitrary existing choices. Actual uses
+the server-password model, not individual email accounts. Its repeat-bootstrap
+probe submits the already-verified password and requires an explicit rejection.
+
+`postiz_registration_denial(client)` is a separate, explicitly authorized security
+probe, not part of the CLI or ordinary account verification. After first-account
+setup, supply a fresh private client with no cookies and require the registration
+policy to be closed. It submits a unique synthetic `example.invalid` address and
+requires the selected release's exact HTTP 400 plain-text policy denial; duplicate
+email or invalid-payload errors do not prove the lock. Unexpected success is a
+failure requiring investigation, not permission to delete an account or retry.
+The helper and its rejection/secret-safety cases have isolated tests; live evidence
+must be recorded separately.
+
+[mautic_first_run.py](scripts/mautic_first_run.py) accepts `--apply --recovery-directory`
+only after independently proving an empty database and recognized first-run config
+via IAP to the fixed project/VM/zone. It uses the supported CSRF-protected installer,
+preserving rendered defaults. Reruns on installed instances only verify login and
+Secure+HttpOnly session cookies. It refuses unknown/partial states rather than
+reinstalling. The selected image's duplicate `autocomplete` hint is tolerated;
+ambiguous submitted field attributes are not. A final installer redirect is **not**
+reported as success: review migration bookkeeping and session-cache state as in
+[the deployment record](DEPLOYMENT.md). Never blindly mark migrations complete on
+an existing or partially migrated database. Credentials and responses stay private.
+
+These are HTTP/API checks, not browser-UX, MFA, PDF, restart or recovery evidence.
+Add/update synthetic default and failure-path tests, then run the root test suite
+when changing these helpers. They do not grant permission to open public ingress.
+
 ## Shared lifecycle, maintenance and logs
 
 `business-tools.service` is the sole lifecycle owner. Its foreground merged Compose
@@ -263,6 +318,25 @@ systemd restarts the project. Unhealthy-but-running containers do not trigger th
 flag. Do not start detached app fragments or a second Compose owner. Plan controlled
 downtime for restarts, backups and updates; stop timeout is 4200 seconds because
 Invoice workers alone can take an hour to shut down.
+
+The approved shutdown repair uses `runtime/stop.py`: synchronously stop Caddy
+first, stop the merged project, wait for the original foreground monitor processes
+using pidfds, then remove containers and require an empty project inventory.
+It does not signal Compose or normalize exit codes. Compose's first-observed-exit
+result remains authoritative; it does not certify every later container exit.
+Caddy closure includes the internal Invoice asset route, so allow whole-stack
+downtime and do not claim lossless worker draining. The backup's clean-stop and
+exclusive-lock guards are unchanged. Unit regressions and the opt-in
+`scripts/rehearse-shutdown.py` cover clean stops and real first-exit failures on
+the installed version; see the deployment record for live backup evidence.
+
+`scripts/install-stop-repair.py` is a one-time config-only handoff for an already
+running old unit, not a replacement for metadata deployment. Preview is write-free;
+application requires protected previous copies, exact unit semantics, ordered locks
+and an unchanged MainPID. Replacing an already-installed helper additionally needs
+its explicitly reviewed `--previous-helper-sha256`. It never stops or restarts the
+stack. The old metadata can regress a handoff on rerun/reboot: apply and stage the
+reviewed metadata update before treating the repair as durable provisioning.
 
 Startup stages root-owned sources, verifies the exact data disk/mount, prepares
 missing directories, prepares the first-install Mautic proxy seed, installs units
@@ -363,18 +437,36 @@ check verifies the transport-peer matcher survives adaptation. Mautic's fragment
 tests also cover the proxy network and unchanged role/queue defaults.
 
 Some checks skip without Terraform/OpenTofu or Compose; optional Caddy adaptation
-uses an already-local image without network. Record passes **and skips**. These
-are not full application runtime, live TLS/IAP, SMTP/OAuth, backup/restore or
-deployment tests. The integration fixes have **not yet been runtime-tested**;
-selected-image smoke tests (including early Mautic HTTPS and full Invoice PDF
-rendering) and an isolated restore drill remain mandatory launch gates. Update
-relevant tests and rerun these commands whenever runtime/configuration contracts
-change.
+uses an already-local image without network. Record passes **and skips**. Unit
+tests alone do not prove full application behavior, TLS/IAP, SMTP/OAuth or deployment.
 
-Local verification on 2026-09-20: **95 Python tests passed, no skips**, including
-three layout regressions, the 22 Mautic seed tests, merged Compose validation and
-offline Caddy adaptation;
-OpenTofu formatting/validation and **19 mocked plan cases passed**. This records
-source-level checks only. Image references remain invalid placeholders pending
-release selection; no cloud apply, public activation or Pipeboard connection was
-performed.
+Two reusable opt-in scripts now exercise the selected release images. Both default
+to a read-only Docker preview and require images already pulled for linux/amd64.
+From the repository root:
+
+<augment_code_snippet mode="EXCERPT">
+````sh
+.venv/bin/python infrastructure/business-tools/scripts/smoke-images.py
+.venv/bin/python infrastructure/business-tools/scripts/restore-databases.py
+````
+</augment_code_snippet>
+
+With approval, add `--run --group actual` to the smoke command; run `observability`,
+`mautic`, `postiz` and `invoice-ninja` sequentially. Add `--run` to the restore
+command for PostgreSQL 17, PostgreSQL 16 and MariaDB 11.4 cold-copy/readback checks.
+These named isolated tests use only fresh project-scoped volumes and synthetic
+credentials, no published ports and internal-only networks; they never connect
+providers. Production settings, health checks, identities and stop periods stay
+unchanged. All synthetic volumes are irreversibly removed at cleanup, not retained
+as backups. Failed cleanup is reported. Docker Desktop's amd64 emulation is not
+evidence of production VM performance. Image platform inspection requires a Docker
+CLI/daemon supporting `docker image inspect --platform`.
+
+All five app groups and all three database restore checks passed locally for the
+selected pins on 2026-09-20. `test_backup_archive.py` separately tests the real
+production archive command against synthetic data/media/runtime-key files and a
+SQLite database. Neither check proves a full installed-app restore or the actual
+systemd backup schedule. The [deployment record](DEPLOYMENT.md) tracks the remaining
+canonical TLS/IAP, early Mautic HTTPS, Invoice PDF, authentication, configured-app
+restore and controlled-delivery gates. Update/add tests and rerun the checks after
+runtime or configuration changes. No cloud apply or public activation is implied.

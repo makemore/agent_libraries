@@ -42,7 +42,50 @@ services:
       postiz-temporal:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "node", "-e", "const r=require('http').get('http://localhost:5000/',s=>process.exit(s.statusCode<500?0:1));r.on('error',()=>process.exit(1));r.setTimeout(4000,()=>{r.destroy();process.exit(1)})"]
+      # Both frontend and backend must respond through the bundled nginx.
+      test:
+        - CMD
+        - node
+        - -e
+        - |
+          const http = require('http');
+          const fail = () => process.exit(1);
+          const deadline = setTimeout(fail, 8000);
+          function check(path, json, limit) {
+            return new Promise(resolve => {
+              const request = http.get('http://127.0.0.1:5000' + path, response => {
+                response.on('error', fail);
+                response.on('aborted', fail);
+                response.on('close', () => { if (!response.complete) fail(); });
+                if (json ? response.statusCode !== 200 :
+                    !(response.statusCode >= 200 && response.statusCode < 400)) return fail();
+                let size = 0;
+                const chunks = [];
+                response.on('data', chunk => {
+                  size += chunk.length;
+                  if (size > limit) return fail();
+                  if (json) chunks.push(chunk);
+                });
+                response.on('end', () => {
+                  if (!response.complete) return fail();
+                  if (json) {
+                    try {
+                      const body = JSON.parse(Buffer.concat(chunks).toString('utf8'));
+                      if (body === null || typeof body !== 'object' || Array.isArray(body) ||
+                          typeof body.register !== 'boolean') return fail();
+                    } catch (_) { return fail(); }
+                  }
+                  resolve();
+                });
+              });
+              request.on('error', fail);
+              request.setTimeout(3000, fail);
+            });
+          }
+          Promise.all([
+            check('/', false, 1048576),
+            check('/api/auth/can-register', true, 4096)
+          ]).then(() => { clearTimeout(deadline); process.exit(0); }, fail);
       interval: 30s
       timeout: 10s
       retries: 5
@@ -126,6 +169,10 @@ services:
       TEMPORAL_ADDRESS: "postiz-temporal:7233"
       # This multihomed server must listen on both private interfaces.
       BIND_ON_IP: "0.0.0.0"
+      # Approved 2026-09-20: reserve SQL Text slots for Postiz, not demo attributes.
+      # Skips future demo creation only; existing attributes need separate review.
+      # See README for scope, verification and removal criterion; no limit override.
+      SKIP_ADD_CUSTOM_SEARCH_ATTRIBUTES: "true"
       # ENABLE_ES is omitted: upstream defaults to PostgreSQL visibility.
     networks: [postiz-private, postiz-temporal-db]
     depends_on:

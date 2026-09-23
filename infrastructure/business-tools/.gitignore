@@ -15,9 +15,12 @@ crash.*.log
 *.key
 bootstrap*.json
 secrets*.json
+admin-access*.json
 __pycache__/
 *.py[cod]
 
 # Keep reproducible provider selections and non-secret examples versioned.
 !.terraform.lock.hcl
 !*.example
+# Explicit reviewed image-only release manifest, never a local deployment tfvars.
+!releases/2026-09-20.tfvars.json

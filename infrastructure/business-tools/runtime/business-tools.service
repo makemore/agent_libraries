@@ -22,7 +22,8 @@ ExecStartPre=/usr/bin/flock --shared --nonblock --no-fork /run/business-tools-da
 # Shared lock lasts for the foreground Compose process. Maintenance takes the
 # exclusive lock only AFTER systemctl stop; never hold it across systemctl start.
 ExecStart=/usr/bin/flock --shared --nonblock --no-fork /run/business-tools-data.lock /opt/business-tools/compose.sh up --remove-orphans --abort-on-container-exit
-ExecStop=/opt/business-tools/compose.sh down --remove-orphans
+# Stop ingress, then all services; await every original monitor before down.
+ExecStop=/usr/bin/python3 /opt/business-tools/stop.py
 Restart=always
 RestartSec=30
 TimeoutStartSec=180

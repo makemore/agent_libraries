@@ -1,8 +1,9 @@
 # Postiz on the shared business-tools VM
 
-This is an application fragment, not a standalone deployment. Leave the older
-`infrastructure/agentic-social` scaffolding alone. No deployment or image pull
-has been performed for this fragment.
+This is an application fragment, not a standalone deployment. The older
+`infrastructure/agentic-social` location is a redirect only. Source configuration
+and container health are not deployment or application-readiness evidence; consult
+the [shared deployment record](../DEPLOYMENT.md) for separately recorded checks.
 
 ## Root integration contract
 
@@ -37,7 +38,30 @@ mountpoint/secret checks, image selection, logging limits, backups, IAP and Cadd
 Root systemd runs merged `docker compose up --abort-on-container-exit`; there are
 no one-shot services or Docker restart policies. Allow at least 90 seconds per
 database for shutdown and a sufficiently larger systemd stop timeout. Healthchecks
-gate startup only: unhealthy running processes do not automatically stop Compose.
+gate dependent-service startup and report container health; unhealthy running
+processes do not automatically stop Compose or trigger a systemd restart.
+
+### Container health is not application readiness
+
+The inline Node healthcheck makes two read-only HTTP requests through the bundled
+nginx at `127.0.0.1:5000`: `/` must finish with status **200–399** (frontend redirects
+are valid), and `/api/auth/can-register` must finish with status **200** and valid
+JSON containing a strictly boolean `register`. Both `true` (first registration may
+be available) and `false` (registration unavailable) are healthy. This check does
+not create an account, relax registration policy or open the public-readiness gate.
+
+The previous frontend-only check could report healthy while nginx returned **502**
+for the backend API. The replacement requires both complete responses, caps frontend
+data at **1 MiB** and API JSON at **4 KiB**, and uses a **3-second socket timeout**
+plus one **8-second overall deadline**, below Compose's unchanged 10-second timeout.
+Errors, aborted/truncated responses, invalid JSON/types, non-success statuses,
+oversized bodies, connection refusal and stalled/trickling responses fail quietly
+with exit code 1; healthcheck output never contains response bodies or diagnostics.
+
+**Container healthy != application readiness.** Even this stronger gate does not
+prove worker/orchestrator operation, Temporal workflow execution, account security,
+canonical HTTPS/IAP, OAuth, SMTP or delivery. Verify those separately before public
+activation. Do not suppress the backend check to make a smoke test pass.
 
 ## Data directories and ownership
 
@@ -121,6 +145,44 @@ namespace creation is included in the health gate to avoid a startup race.
 Postiz's image runs frontend, backend and orchestrator; `RUN_CRON=true` enables
 bundled scheduled maintenance. No second cron container or host cron is needed.
 
+### Approved production configuration: skip auto-setup demo attributes
+
+**User approval: 2026-09-20.** The scoped compatibility fix is for the selected
+**Postiz v2.23.0 + temporalio/auto-setup:1.28.1** SQL-visibility installation.
+Temporal SQL visibility provides only **three Text search-attribute slots**.
+Auto-setup's demo `CustomTextField` and `CustomStringField` already occupy two Text
+slots in the production `default` namespace; Postiz's backend needs two more,
+`organizationId` and `postId`. That exceeds the supported limit and can prevent
+backend startup even while the frontend and Temporal cluster are healthy.
+
+Only `postiz-temporal` sets upstream's supported
+`SKIP_ADD_CUSTOM_SEARCH_ATTRIBUTES: "true"`. This is legitimate production
+configuration to omit auto-setup's demonstration attributes, not an application
+reset or a smoke-only override. It skips **future demo-attribute creation only**:
+it does **not remove existing attributes**, free their occupied slots, delete
+workflow history or reset accounts. Schema setup and namespace creation remain
+enabled. A deployment with existing demo attributes therefore still needs a
+separately reviewed, backed-up metadata cleanup/maintenance plan; applying this
+environment flag alone does not repair that persisted state. Do not remove
+attributes used by workflows or blindly recreate the namespace/database.
+
+No server-limit/dynamic-config override, storage/authentication/retention change,
+image-pin change or development force-refresh configuration accompanies this fix.
+The regression checks in `../tests/test_postiz_health.py` verify the production
+environment setting and absence of limit overrides, and execute the actual inline
+probe against synthetic Node HTTP responses. The existing selected-image smoke
+command `scripts/smoke-images.py --group postiz --run` (relative to business-tools,
+with explicit isolated-run approval) must also pass; offline mocks do not establish
+real-image compatibility or production recovery.
+
+**Removal criterion:** retain skip-demo while this auto-setup image otherwise adds
+unused demo attributes. Reassess it only when an upstream/image upgrade no longer
+adds them, or a separately approved replacement initialization path preserves
+Postiz's required attributes within supported SQL limits; verify that path on an
+isolated fresh install and an existing-data copy first. Any temporary diagnostic
+workaround must have its own approval, scope and removal criterion—none is added
+here. Do not clear application data or alter defaults to obtain a healthy result.
+
 This is a single-node deployment, not a highly available Temporal installation.
 Back up both Temporal databases together with Postiz's DB and uploads. Keep upstream
 namespace retention and dynamic configuration defaults; do not copy the development
@@ -175,8 +237,19 @@ restored isolated copy, not live data. Reruns must preserve accounts and setting
   [Redis ownership/layout](https://github.com/redis/docker-library-redis/blob/master/7.2/debian/Dockerfile).
 - [Compose raw env files and bind semantics](https://docs.docker.com/reference/compose-file/services/).
 
-Run `python3 -m unittest discover -s infrastructure/business-tools/agentic-social/tests -v`
-from the repository root. Tests are isolated static checks, with an optional
-configuration-only Compose check using temporary **empty** env files. No Docker
-daemon, image pull, live credentials or running apps are needed. These checks do
-not prove image startup, OAuth, SMTP, backups or root's readiness/IAP integration.
+From the repository root, run:
+
+<augment_code_snippet mode="EXCERPT">
+````sh
+.venv/bin/python -m unittest discover -s infrastructure/business-tools/tests -p test_postiz_health.py -v
+.venv/bin/python -m unittest discover -s infrastructure/business-tools/agentic-social/tests -v
+````
+</augment_code_snippet>
+
+Tests use static contracts and synthetic Node HTTP responses, with an optional
+configuration-only Compose check using temporary **empty** env files. Probe tests
+skip explicitly when Node is unavailable; no dependencies are installed. No Docker
+daemon, image pull, live credentials, production requests or running apps are needed.
+Record passes and skips. These checks do not prove image startup, OAuth, SMTP,
+backups or root's readiness/IAP integration. Rerun the selected-image smoke after
+health/configuration changes and keep its result distinct from production readiness.

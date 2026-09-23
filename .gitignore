@@ -30,3 +30,6 @@ docs/site/
 # Independent repositories are tracked as gitlinks in .gitmodules.
 # Ignore local tooling, never entire project groups.
 .ruff_cache/
+
+# Local upstream reference clone, not part of this repository.
+vendor/reachy_mini_conversation_app/

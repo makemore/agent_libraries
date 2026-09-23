@@ -11,6 +11,10 @@ x-mautic-app: &mautic-app
   env_file:
     - path: /run/business-tools/mautic.env
       format: raw
+  # Approved 2026-09-20: hide image-build cache; each role compiles from local.php.
+  # Disposable and private to the container, never shared/retained business data.
+  tmpfs:
+    - /var/www/html/var/cache:rw,nosuid,nodev,noexec,size=256m,uid=33,gid=33,mode=0770
   volumes:
     # Cover each image-declared VOLUME exactly; no anonymous child volumes.
     - type: bind

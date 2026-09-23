@@ -27,15 +27,19 @@ class PolicyTests(unittest.TestCase):
         config = json.loads((ROOT / "runtime/config.json").read_text())
         self.assertEqual(config.get("version", 2), 2, "Never enable legacy allow-all semantics")
         client, governance = config["client"], config["governance"]
-        for key in ("enforce_auth_on_inference", "disable_content_logging"):
+        for key in ("enforce_auth_on_inference", "disable_content_logging", "enable_logging"):
             self.assertIs(client[key], True, key)
-        for key in ("allow_direct_keys", "enable_logging", "allow_per_request_content_storage_override",
+        for key in ("allow_direct_keys", "allow_per_request_content_storage_override",
                     "allow_per_request_raw_override", "dump_errors_in_console_logs"):
             self.assertIs(client[key], False, key)
         self.assertIs(governance["auth_config"]["is_enabled"], True)
         self.assertIs(governance["auth_config"]["disable_auth_on_inference"], False)
-        # v2 may omit unused stores/collections rather than seed empty legacy entries.
-        self.assertIs(config.get("logs_store", {}).get("enabled", False), False)
+        # Metadata-only request logs on the retained data disk: the dashboard Logs page
+        # needs the logs store, while disable_content_logging keeps prompts/responses out.
+        logs_store = config["logs_store"]
+        self.assertIs(logs_store["enabled"], True)
+        self.assertEqual(logs_store["type"], "sqlite")
+        self.assertEqual(logs_store["config"]["path"], "/app/data/logs.db")
         for section in (config, governance):
             for key in ("providers", "virtual_keys"):
                 self.assertTrue(not section.get(key), "No seeded " + key)

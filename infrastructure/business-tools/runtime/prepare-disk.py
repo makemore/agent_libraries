@@ -281,7 +281,7 @@ def prepare(*, check_only=False):
 def check_assets():
     names = (
         "bootstrap.sh", "prepare-disk.py", "compose.sh", "backup.sh", "fetch-secrets.py",
-        "prepare-mautic.py",
+        "prepare-mautic.py", "stop.py",
         "business-tools.service", "business-tools-backup.service", "business-tools-backup.timer",
         "deployment.json", "compose.yaml", "Caddyfile", "invoice-ninja/nginx.conf",
         "invoice-ninja/logrotate.conf", "observability/prometheus.yml",

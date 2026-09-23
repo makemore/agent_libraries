@@ -10,7 +10,7 @@ locals {
   runtime_files = {
     for name in [
       "bootstrap.sh", "prepare-disk.py", "compose.sh", "backup.sh", "fetch-secrets.py",
-      "prepare-mautic.py",
+      "prepare-mautic.py", "stop.py",
       "business-tools.service", "business-tools-backup.service", "business-tools-backup.timer"
     ] :
     name => filebase64("${path.module}/runtime/${name}")

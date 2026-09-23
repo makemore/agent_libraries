@@ -183,7 +183,9 @@ only Authorization credentials are admitted at the edge. Never log client keys.
 Privately configure providers, then issue a **separate virtual key per client/application/environment**
 with an explicit provider key ID and model allowlist, never shared wildcard access across clients.
 Test missing/invalid/unauthorized keys/models and fallback isolation: client A must never use client B's key.
-No request/response content or log store; auth enforcement, disabled raw overrides and privacy guards
+Request logs are metadata only (`logs_store` SQLite at `/app/data/logs.db` with
+`disable_content_logging: true`): model, tokens, latency, cost and status are stored so the dashboard
+Logs page works, never prompts or responses. Auth enforcement, disabled raw overrides and privacy guards
 are deliberate gateway security settings, not general fixture/default changes. Verify the pinned image
 honors them before serving traffic; provider retention is separate.
 
@@ -204,6 +206,15 @@ Config is seeded only when absent, preserving dashboard edits. After applying te
 on the VM (this **restarts** the gateway): `sudo google_metadata_script_runner startup`.
 Manually reconcile security-policy changes in existing config; never blindly
 overwrite dashboard state or assume a new seed updates it.
+
+Enabling request logs on an **existing** instance (seeded before `logs_store` was enabled) is such a
+reconciliation. Bifrost reads `logs_store` from the file at startup, but the `client` section is
+hash-reconciled with `config.db`: if the file's `client` section changes, the file overwrites every
+dashboard client-setting edit. So edit only the `logs_store` key in the live
+`/srv/ai-gateway/bifrost/config.json` (root-only, mode 0600, owner 1000:1000; leave `client` unchanged),
+restart the gateway, then turn on *Enable Logs* in the dashboard settings. That toggle persists to
+`config.db` and survives restarts because the file hash is unchanged. The new `logs.db` is picked up by
+the existing online SQLite backup automatically.
 
 Safe VM status checks below avoid environment/config dumps and log content:
 

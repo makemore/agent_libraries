@@ -323,6 +323,34 @@ class PureSafetyTests(unittest.TestCase):
         self.assertEqual(str(disk.DATA_MOUNT), "/srv/business-tools")
         self.assertEqual(str(disk.SOURCE_ROOT), "/opt/business-tools")
 
+    def test_stop_helper_is_checked_as_a_root_owned_asset(self):
+        # Mock host paths/ownership; the allowlist and validation dispatch are real.
+        with mock.patch.object(disk, "root_owned") as root_owned, \
+             mock.patch.object(disk, "no_symlinks"), \
+             mock.patch.object(Path, "exists", return_value=False):
+            disk.check_assets()
+        root_owned.assert_any_call(disk.SOURCE_ROOT / "stop.py")
+
+    def test_stop_wiring_preserves_failure_and_shutdown_budget(self):
+        unit = (RUNTIME / "business-tools.service").read_text()
+        self.assertEqual(re.findall(r"(?m)^ExecStop=(.*)$", unit), [
+            "/usr/bin/python3 /opt/business-tools/stop.py",
+        ])
+        self.assertNotRegex(unit, r"(?m)^\s*SuccessExitStatus\s*=")
+        self.assertEqual(re.findall(r"(?m)^TimeoutStopSec=(.*)$", unit), ["4200"])
+        self.assertNotRegex(unit, r"(?m)^\s*TimeoutSec\s*=")
+        for path in (RUNTIME / "business-tools.service", RUNTIME / "stop.py",
+                     RUNTIME / "compose.sh", RUNTIME / "backup.sh",
+                     RUNTIME / "bootstrap.sh", ROOT / "main.tf"):
+            with self.subTest(path=path.name):
+                source = path.read_text()
+                self.assertNotIn("reset-failed", source)
+                self.assertNotRegex(source, r"""(?<![\w-])(?:--timeout|-t)(?:[=\s'"]|\d)""")
+        for path in (RUNTIME / "backup.sh", RUNTIME / "bootstrap.sh", ROOT / "main.tf"):
+            with self.subTest(path=path.name):
+                self.assertIn("--property=Result --value business-tools.service) == success",
+                              path.read_text())
+
     def test_device_must_be_a_symlink_to_a_block_device(self):
         path = mock.Mock()
         path.is_symlink.return_value = False
@@ -362,6 +390,11 @@ class PureSafetyTests(unittest.TestCase):
 
 @unittest.skipUnless(shutil.which("bash"), "bash is required for syntax/mock-script checks")
 class ScriptTests(unittest.TestCase):
+    def test_config_repair_preserves_installed_package_versions(self):
+        source = (RUNTIME / 'bootstrap.sh').read_text()
+        self.assertIn('apt-get install -y --no-upgrade docker.io docker-compose-v2 python3 logrotate iptables', source)
+        self.assertNotIn('apt-get upgrade', source)
+
     @staticmethod
     def bootstrap_functions():
         source = (RUNTIME / "bootstrap.sh").read_text()
@@ -380,7 +413,13 @@ class ScriptTests(unittest.TestCase):
     def test_compose_version_gate_keeps_raw_env_contract(self):
         for version, accepted in (("2.30.0", True), ("v2.40.1", True),
                                   ("2.30.3+ds1-0ubuntu1", True), ("3.0.0", True),
+                                  ("2.40.3+ds1-0ubuntu1~24.04.1", True),
+                                  ("v2.30.0+ds1-0ubuntu1~24.04", True),
                                   ("2.29.9", False), ("1.99.0", False),
+                                  ("2.29.9+ds1-0ubuntu1~24.04.1", False),
+                                  ("2.40.3~rc1", False),
+                                  ("2.40.3-rc1+ds1-0ubuntu1~24.04.1", False),
+                                  ("2.40.3+ds1-0ubuntu1~rc1", False),
                                   ("2.30.0-rc1", False), ("unparseable", False)):
             with self.subTest(version=version):
                 source = ('docker() { printf "%s\\n" "$TEST_VERSION"; }\n' +
@@ -479,7 +518,11 @@ systemctl() {
         start) [[ $FAIL_STAGE != start ]] ;;
         show)
             if [[ $2 == --property=Result ]]; then
-                if [[ $FAIL_STAGE == stop-result ]]; then printf 'timeout\n'; else printf 'success\n'; fi
+                case "$FAIL_STAGE" in
+                    stop-result) printf 'timeout\n' ;;
+                    stop-exit-code) printf 'exit-code\n' ;;
+                    *) printf 'success\n' ;;
+                esac
             elif [[ -e $TEST_ROOT/stopped ]]; then printf 'inactive\n'; else printf 'active\n'; fi ;;
     esac
 }
@@ -514,6 +557,26 @@ find() { record retention; }
                 self.assertEqual(names, [])
                 if failure in ("stop", "stop-result", "leftover"):
                     self.assertNotIn("tar", events)
+
+    def test_backup_exit_code_result_refuses_archive_and_still_restarts(self):
+        # Named failure: stop succeeds and leaves an inactive unit, but systemd
+        # retains Result=exit-code from the original foreground Compose process.
+        result, events, names = self.run_mock_backup("stop-exit-code")
+        self.assertEqual(result.returncode, 1)
+        self.assertEqual(names, [])
+        stop = "systemctl stop business-tools.service"
+        state = "systemctl show --property=ActiveState --value business-tools.service"
+        outcome = "systemctl show --property=Result --value business-tools.service"
+        restart = "systemctl start business-tools.service"
+        self.assertLess(events.index(stop), events.index(state, events.index(stop)))
+        self.assertLess(events.index(state, events.index(stop)), events.index(outcome))
+        self.assertLess(events.index(outcome), events.index(restart))
+        self.assertEqual(events.count(restart), 1)
+        self.assertEqual(events.count("safety-check"), 1)
+        for forbidden in ("flock --exclusive --nonblock 8", "docker-state", "tar",
+                          "gzip", "sync", "retention"):
+            self.assertNotIn(forbidden, events)
+        self.assertFalse(any("reset-failed" in event for event in events))
 
     def test_restart_failure_is_reported_even_after_successful_archive(self):
         result, events, names = self.run_mock_backup("start")

@@ -67,3 +67,6 @@
 [submodule "archive/agent-client"]
 	path = archive/agent-client
 	url = https://github.com/makemore/agent-client.git
+[submodule "clients/agent-reachy"]
+	path = clients/agent-reachy
+	url = https://github.com/makemore/agent-reachy.git

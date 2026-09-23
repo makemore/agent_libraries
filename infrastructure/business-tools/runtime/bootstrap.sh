@@ -24,8 +24,10 @@ require_compose_version() {
         printf '%s\n' 'Docker Compose >= 2.30.0 is required; Ubuntu package is unavailable.' >&2
         return 1
     }
-    # Accept stable SemVer build metadata (Ubuntu +ds packaging), not prereleases.
-    if [[ ! $compose_version =~ ^v?([0-9]+)\.([0-9]+)\.([0-9]+)(\+[0-9A-Za-z.-]+)?$ ]] ||
+    # Ubuntu reports stable builds such as 2.40.3+ds1-0ubuntu1~24.04.1.
+    # Allow a numeric distro-release suffix only after build metadata, never an
+    # upstream prerelease (~rc/-rc). Keep the >=2.30 raw-env contract unchanged.
+    if [[ ! $compose_version =~ ^v?([0-9]+)\.([0-9]+)\.([0-9]+)(\+[0-9A-Za-z.-]+(~[0-9]+(\.[0-9]+)*)?)?$ ]] ||
         (( 10#${BASH_REMATCH[1]:-0} < 2 || (10#${BASH_REMATCH[1]:-0} == 2 && 10#${BASH_REMATCH[2]:-0} < 30) )); then
         printf '%s\n' 'Docker Compose >= 2.30.0 is required for raw env files. Upgrade the approved Ubuntu package; no fallback or env downgrade is permitted.' >&2
         return 1
@@ -60,9 +62,10 @@ fi
 exec 8>/run/business-tools-data.lock
 flock --exclusive --nonblock 8
 
-# Ubuntu packages only; no downloaded installer or repository changes.
+# Ubuntu packages only; do not upgrade installed packages during a config repair.
+# New hosts still install prerequisites; upgrades need a separate reviewed change.
 apt-get update
-DEBIAN_FRONTEND=noninteractive apt-get install -y docker.io docker-compose-v2 python3 logrotate iptables
+DEBIAN_FRONTEND=noninteractive apt-get install -y --no-upgrade docker.io docker-compose-v2 python3 logrotate iptables
 require_compose_version
 systemctl start docker.service
 metadata_firewall

@@ -76,6 +76,107 @@ do not replace `local.php`, reset installation, or seed fake contacts on a rerun
 Plugin/theme customization belongs in a reviewed derived image, not ephemeral
 container changes. Back up config/media with a consistent DB backup before updates.
 
+### Disposable application cache (approved 2026-09-20)
+
+The reviewed Mautic **6.0.9** image ships build-time compiled containers under
+`/var/www/html/var/cache/prod/Container*`, including session `cookie_secure=false`.
+Recreating from that image alone can retain the wrong compiled behavior even with
+the correct canonical HTTPS `site_url` already stored in `local.php`: this is
+**image-build cache pollution**, not permission to reset persisted settings.
+Upstream `app/config/config.php` derives session-cookie security from `site_url`
+outside the installer. The local `cookie_secure` parameter controls tracking
+cookies, not this session setting; do **not** add a cookie override as a fix.
+
+The shared `x-mautic-app` anchor now mounts `/var/www/html/var/cache` as a separate
+container-private tmpfs for **web, cron and optional worker**:
+`rw,nosuid,nodev,noexec,size=256m,uid=33,gid=33,mode=0770`. Each role rebuilds its own
+cache from supported configuration instead of reusing the image's compiled cache.
+This cache is **not shared or retained business data** and is not backed up. The
+four shared application binds, database, `local.php`, narrow proxy trust, official
+entrypoints, worker profile and healthchecks are unchanged. No startup command
+deletes cache or rewrites operator configuration.
+
+Each tmpfs is bounded to 256 MiB; memory used is **charged to that container's
+existing memory limit**, not extra reserved capacity. Account for compilation
+memory/startup cost and monitor limits; enabling workers adds another independent
+cache. Reassess and remove this workaround when an upstream image fixes the
+build-time cache pollution and the regression check passes without the mount.
+Removal is a reviewed image/configuration change, not a data migration.
+
+The named **isolated-mautic-cache** exception in
+[`check-mautic-cache.py`](../scripts/check-mautic-cache.py) reuses the smoke harness:
+real templates, pinned already-local linux/amd64 images, fresh project volumes,
+private synthetic env files, internal-only networks, no published ports, no pulls
+and no cloud/production access. Preview is the default and does not contact the
+Docker daemon. Preview counts **4 services / 3 images**: web, cron, MariaDB and
+`cache-proxy`; the one-shot volume-initialization helper is excluded from service
+counts and reuses the same Caddy image. It requires OpenTofu and Compose 2.30+:
+
+<augment_code_snippet mode="EXCERPT">
+````sh
+.venv/bin/python -B infrastructure/business-tools/scripts/check-mautic-cache.py
+.venv/bin/python -B -m unittest discover -s infrastructure/business-tools/tests -p test_mautic_cache.py -v
+````
+</augment_code_snippet>
+
+An approved local `--run` installs only a synthetic administrator through the
+supported CLI, using `https://marketing.makemoredigital.com` without reaching that
+host. Its fixed fixture password is deliberately non-secret and must **never** be
+used for production. The script then force-recreates **only fixture web + cron**
+twice (a test-only lifecycle exception, not a production maintenance command).
+The in-web-container cookie probe requests `http://172.30.251.2:8080/s/login` with
+the canonical Host header through the real fixture proxy; it requires HTTP 200,
+Secure cookies and an HttpOnly session cookie. Checks emit booleans only for
+cookies, exact stored URL, one installed administrator/admin role, unchanged proxy
+seed, tmpfs and discarded cache markers, reading shared state from both roles.
+Headers, credentials and CLI diagnostics are captured, never printed.
+
+Named **HTTP-transport-only `cache-proxy`** exception: direct HTTP to web returns
+the mandatory-HTTPS 301 before issuing cookies, even with the canonical Host.
+This cookie regression alone therefore simulates TLS termination using the
+already-local pinned Caddy at the already trusted `172.30.251.2`, with web still
+at `.3` on the existing internal `mautic-proxy` bridge. A fixed, public, ephemeral
+read-only Caddyfile listens on HTTP `:8080`, disables automatic HTTPS and the admin
+API, and proxies only to `mautic-web:80`, setting upstream Host to
+`marketing.makemoredigital.com` and `X-Forwarded-Proto` to `https`. No caller can
+choose another target; model assertions guard the URL, subnet, address and alias.
+This is **not a TLS connection or TLS-verification bypass**, and proves no live
+TLS/IAP behavior. Production proxy trust, cookie settings, canonical URLs,
+healthchecks, resource limits and native entrypoints are not changed.
+
+The fixture proxy joins only that bridge, publishes no ports and has no egress
+or real-data mounts. Its root is read-only, capabilities are dropped except
+`NET_BIND_SERVICE` (required by the pinned binary's file capability even on 8080),
+and it retains the production Caddy 256 MiB / 128 PID limits and
+`no-new-privileges`. Only `/config`, `/data` and `/tmp` are writable, each a bounded
+16 MiB tmpfs; the sole host bind is the invocation's public Caddyfile. The proxy
+starts with the fixture group only after all three images pass the existing
+local-only preflight. `test_http_transport_only_proxy_preserves_defaults_and_isolation` in
+`tests/test_mautic_cache.py`, its rejection/orchestration cases and the opt-in
+selected-image COOKIE probe verify the exception. Remove it when the regression
+uses an approved isolated, certificate-valid TLS fixture; never promote this
+HTTP-only configuration to production.
+
+Named CLI compatibility case: `docker exec` bypasses the image entrypoint's
+export of `MAUTIC_DB_PORT`. The upstream first-run `local.php` otherwise calls
+`file_get_contents` with an empty filename. The fixture CLI wrapper alone replays
+the entrypoint's `3306` fallback, preserving an existing port; no Compose or
+persisted setting changes. Remove this shim when upstream handles the missing
+port. It also runs the supported metadata-storage initialization before the
+fresh install, matching the image's test-data install sequence without loading
+contacts. Both steps are covered by `tests/test_mautic_cache.py` and the opt-in
+selected-image regression; never run them as a repair of an existing database.
+
+Cleanup irreversibly removes only that invocation's exact fresh project/volumes;
+cleanup failure fails the check. `tests/test_mautic_cache.py` covers real-template
+inheritance/preservation and mocked execution/cleanup failures. Run it and the
+existing Mautic/stack suites after changes, recording skips. This regression
+check is not proof of live TLS/IAP, early-installer proxy detection, authentication,
+delivery or restore. On 2026-09-21 the selected-image fixture passed installation,
+both recreations, persisted-state and Secure/HttpOnly probes, and exact cleanup
+(exit 0). Production application and canonical-HTTPS restart checks remain pending
+in the [deployment record](../DEPLOYMENT.md).
+
 ## First-install proxy trust
 
 Root's [prepare-mautic.py](../runtime/prepare-mautic.py) implements the early PHP
@@ -239,6 +340,9 @@ whole merged project. Healthchecks do not restart unhealthy-but-running processe
 - [Application's actual queue defaults](https://github.com/mautic/mautic/blob/6.x/app/bundles/MessengerBundle/Config/config.php),
   [environment processing](https://github.com/mautic/mautic/blob/6.x/app/config/parameters.php),
   [installation](https://docs.mautic.org/en/6.0/getting_started/how_to_install_mautic.html).
+- Mautic 6.0.9 [compiled session-cookie configuration](https://github.com/mautic/mautic/blob/6.0.9/app/config/config.php)
+  and [supported CLI installer options](https://github.com/mautic/mautic/blob/6.0.9/app/bundles/InstallBundle/Command/InstallCommand.php)
+  used by the isolated cache regression.
 - [Debian Bookworm www-data identity](https://sources.debian.org/data/main/b/base-passwd/3.6.1/passwd.master),
   [MariaDB image](https://github.com/MariaDB/mariadb-docker/blob/master/11.4/Dockerfile),
   [MariaDB ownership/init](https://github.com/MariaDB/mariadb-docker/blob/master/docker-entrypoint.sh),
