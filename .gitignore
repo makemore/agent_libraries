@@ -33,3 +33,6 @@ docs/site/
 
 # Local upstream reference clone, not part of this repository.
 vendor/reachy_mini_conversation_app/
+
+# Local machine state (gh device id, etc.), never committed.
+.local/

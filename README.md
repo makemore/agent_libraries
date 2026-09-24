@@ -93,8 +93,11 @@ or mobile workflows. Its isolated environment and lockfile are managed with uv.
 From that directory, `uv run --locked jimmy demo --plain` runs a labelled offline
 simulation without credentials or workspace writes. Real runs require an explicit
 model via `--model` or `JIMMY_MODEL` and an existing OpenAI credential source.
-Writes and commands require exact allow-once approval; JSON/noninteractive runs
-deny them by default. Approved commands are **not sandboxed**.
+Local tool actions are auto-approved by default (`approvals.mode = "all"`),
+including JSON/noninteractive runs; user settings can explicitly select `ask` or
+`edits`. Plan mode and workspace restrictions still apply. MCP, managed-profile
+changes and undo/rewind retain separate approval; unattended requests needing
+approval are denied. Commands are **not sandboxed**.
 
 Jimmy's remote is `makemore/jimmy`; `make checkout` initializes its pinned commit.
 Publication remains

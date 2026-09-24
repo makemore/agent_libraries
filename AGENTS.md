@@ -38,9 +38,9 @@ guidance also applies. This policy is for human contributors and coding agents.
   contain only safe identifiers, configuration choices and counts.
 - Add and run default-path tests as well as named exception tests. Verify the
   stored state and supported read API, not only rendered output or HTTP status.
-- Run Django/pytest with the root `.venv/bin/python` in this checkout (or
-  `../../../.venv/bin/python` from `packages/python/<package>`). Use isolated test settings,
-  never the host database, for automated tests.
+- Run automated tests in local Docker containers in the background, as described
+  in [TESTING.md](TESTING.md). Use isolated test settings, never the host
+  database.
 
 ## Conversation history example
 
